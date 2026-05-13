@@ -10,8 +10,8 @@ from app.services.conversation_service import ConversationService
 from app.models.conversation import (
     ConversationCreate,
     ConversationResponse,
-    MessageCreate,
 )
+from app.models.message import MessageCreate
 
 router = APIRouter()
 
