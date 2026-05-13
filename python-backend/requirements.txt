@@ -9,6 +9,7 @@ pydantic-settings>=2.0.0
 # These packages enable full LLM integration and agent capabilities
 openhands-sdk>=0.1.0
 openhands-tools>=0.1.0
+openhands-workspace>=0.1.0  # For OpenHandsCloudWorkspace
 
 # HTTP client for API connections (OpenHands Cloud, provider testing)
 httpx>=0.26.0

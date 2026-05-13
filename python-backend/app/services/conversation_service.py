@@ -23,19 +23,25 @@ from app.models.events import (
 # Try to import SDK components
 try:
     from openhands.sdk import Conversation as SDKConversation
-    from openhands.workspace import OpenHandsCloudWorkspace
     from app.sdk.visualizer import GUIVisualizer
     from app.sdk.llm_factory import create_llm, get_provider_from_model
     from app.sdk.agent_factory import create_sdk_agent, register_builtin_agents
     from app.config import PROVIDER_OPENHANDS, OPENHANDS_BASE_URL
     SDK_AVAILABLE = True
+except ImportError as e:
+    print(f"[Warning] SDK import failed: {e}")
+    SDK_AVAILABLE = False
+    SDKConversation = None
+    GUIVisualizer = None
+
+# Try to import CloudWorkspace (separate package: openhands-workspace)
+try:
+    from openhands.workspace import OpenHandsCloudWorkspace
     CLOUD_WORKSPACE_AVAILABLE = True
 except ImportError:
-    SDK_AVAILABLE = False
+    print("[Warning] openhands-workspace not installed. Install with: pip install openhands-workspace")
     CLOUD_WORKSPACE_AVAILABLE = False
-    SDKConversation = None
     OpenHandsCloudWorkspace = None
-    GUIVisualizer = None
 
 
 class ConversationService:
