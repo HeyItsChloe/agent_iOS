@@ -1,7 +1,7 @@
 import { ChevronLeft, MoreHorizontal, Users, Sparkles } from 'lucide-react';
 import { useConversationStore } from '../../stores/conversationStore';
 import { useAgentStore } from '../../stores/agentStore';
-import { ConversationType } from '../../types/conversation';
+
 
 interface HeaderProps {
   onBack?: () => void;
@@ -27,12 +27,13 @@ export function Header({
     );
   }
 
+  const agentsArray = Array.from(agents.values());
   const conversationAgents = activeConversation.agentIds
-    .map(id => agents.find(a => a.id === id))
+    .map(id => agentsArray.find(a => a.id === id))
     .filter(Boolean);
 
-  const isGroup = activeConversation.type === ConversationType.GROUP;
-  const isDelegator = activeConversation.type === ConversationType.DELEGATOR;
+  const isGroup = activeConversation.type === 'group';
+  const isDelegator = activeConversation.type === 'delegator';
 
   return (
     <header className="h-16 bg-ios-card border-b border-ios-separator flex items-center px-4 gap-3">

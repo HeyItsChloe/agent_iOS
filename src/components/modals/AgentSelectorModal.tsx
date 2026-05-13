@@ -14,13 +14,14 @@ export function AgentSelectorModal({ onClose }: AgentSelectorModalProps) {
   const [showCreateForm, setShowCreateForm] = useState(false);
   
   const { agents } = useAgentStore();
-  const { activeConversation, updateConversationAgents } = useConversationStore();
+  const { activeConversation, updateConversation } = useConversationStore();
 
   const [selectedAgents, setSelectedAgents] = useState<string[]>(
     activeConversation?.agentIds || []
   );
 
-  const filteredAgents = agents.filter(agent =>
+  const agentsArray = Array.from(agents.values());
+  const filteredAgents = agentsArray.filter(agent =>
     agent.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
     agent.description.toLowerCase().includes(searchQuery.toLowerCase())
   );
@@ -38,7 +39,7 @@ export function AgentSelectorModal({ onClose }: AgentSelectorModalProps) {
 
   const handleSave = () => {
     if (activeConversation && selectedAgents.length > 0) {
-      updateConversationAgents(activeConversation.id, selectedAgents);
+      updateConversation(activeConversation.id, { agentIds: selectedAgents });
       onClose();
     }
   };
@@ -161,7 +162,7 @@ interface AgentRowProps {
     id: string;
     name: string;
     description: string;
-    avatar: string;
+    avatar: string | null;
     color: string;
     isBuiltin: boolean;
   };
@@ -184,7 +185,7 @@ function AgentRow({ agent, selected, onToggle }: AgentRowProps) {
         className="w-10 h-10 rounded-full flex items-center justify-center text-white text-lg flex-shrink-0"
         style={{ backgroundColor: agent.color }}
       >
-        {agent.avatar}
+        {agent.avatar || '🤖'}
       </div>
       <div className="flex-1 text-left min-w-0">
         <div className="font-medium text-ios-text">{agent.name}</div>
@@ -217,23 +218,27 @@ function CreateAgentForm({ onClose, onCreated }: CreateAgentFormProps) {
   const [systemPrompt, setSystemPrompt] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   
-  const { createAgent } = useAgentStore();
+  const { addAgent } = useAgentStore();
 
   const handleSubmit = async () => {
     if (!name.trim()) return;
     
     setIsSubmitting(true);
     try {
-      const agent = await createAgent({
+      const newAgent = {
+        id: `agent-${Date.now()}`,
         name: name.trim(),
         description: description.trim(),
         avatar,
         color,
+        type: 'custom' as const,
         systemPrompt,
         toolIds: ['terminal', 'file_editor', 'task_tracker'],
         skillIds: [],
-      });
-      onCreated(agent.id);
+        isBuiltin: false,
+      };
+      addAgent(newAgent);
+      onCreated(newAgent.id);
     } catch (error) {
       console.error('Failed to create agent:', error);
     } finally {

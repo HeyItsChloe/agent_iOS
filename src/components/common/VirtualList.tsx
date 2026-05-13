@@ -3,10 +3,9 @@ import {
   useState, 
   useEffect, 
   useCallback, 
-  ReactNode,
-  memo,
   useMemo,
 } from 'react';
+import type { ReactNode } from 'react';
 import { cn } from '../../utils/cn';
 
 interface VirtualListProps<T> {

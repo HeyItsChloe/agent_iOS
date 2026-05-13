@@ -3,7 +3,7 @@ import { Modal, ModalFooter } from './Modal';
 import { useAgentStore } from '../../stores/agentStore';
 import { useSkillStore } from '../../stores/skillStore';
 import { useConversationStore } from '../../stores/conversationStore';
-import { ConversationType } from '../../types/conversation';
+import type { ConversationType } from '../../types/conversation';
 import { Check, Users, Sparkles, Bot } from 'lucide-react';
 import { cn } from '../../utils/cn';
 
@@ -14,17 +14,20 @@ interface NewChatModalProps {
 
 export function NewChatModal({ onClose, onCreated }: NewChatModalProps) {
   const [step, setStep] = useState<'type' | 'agents' | 'skills'>('type');
-  const [chatType, setChatType] = useState<ConversationType>(ConversationType.SINGLE);
+  const [chatType, setChatType] = useState<ConversationType>('single');
   const [selectedAgents, setSelectedAgents] = useState<string[]>([]);
   const [selectedSkills, setSelectedSkills] = useState<string[]>([]);
   const [title, setTitle] = useState('');
   
   const { agents } = useAgentStore();
   const { skills } = useSkillStore();
-  const { createConversation } = useConversationStore();
+  const { addConversation, setActiveConversation } = useConversationStore();
+  
+  const agentsArray = Array.from(agents.values());
+  const skillsArray = Array.from(skills.values());
 
   const handleSelectAgent = (agentId: string) => {
-    if (chatType === ConversationType.SINGLE) {
+    if (chatType === 'single') {
       setSelectedAgents([agentId]);
     } else {
       setSelectedAgents(prev =>
@@ -46,14 +49,22 @@ export function NewChatModal({ onClose, onCreated }: NewChatModalProps) {
   const handleCreate = () => {
     if (selectedAgents.length === 0) return;
 
-    const conversation = createConversation({
+    const newConversation = {
+      id: `conv-${Date.now()}`,
       type: chatType,
       agentIds: selectedAgents,
       skillIds: selectedSkills,
-      title: title || undefined,
-    });
+      title: title || null,
+      messages: [],
+      createdAt: new Date(),
+      updatedAt: new Date(),
+      typingAgents: {},
+      isArchived: false,
+    };
 
-    onCreated(conversation.id);
+    addConversation(newConversation);
+    setActiveConversation(newConversation.id);
+    onCreated(newConversation.id);
   };
 
   const canProceed = () => {
@@ -96,24 +107,24 @@ export function NewChatModal({ onClose, onCreated }: NewChatModalProps) {
               icon={<Bot size={24} />}
               title="Single Agent"
               description="Chat with one AI agent"
-              selected={chatType === ConversationType.SINGLE}
-              onClick={() => setChatType(ConversationType.SINGLE)}
+              selected={chatType === 'single'}
+              onClick={() => setChatType('single')}
             />
             
             <ChatTypeOption
               icon={<Sparkles size={24} />}
               title="Delegator Mode"
               description="One agent delegates tasks to sub-agents"
-              selected={chatType === ConversationType.DELEGATOR}
-              onClick={() => setChatType(ConversationType.DELEGATOR)}
+              selected={chatType === 'delegator'}
+              onClick={() => setChatType('delegator')}
             />
             
             <ChatTypeOption
               icon={<Users size={24} />}
               title="Group Chat"
               description="Multiple agents collaborate together"
-              selected={chatType === ConversationType.GROUP}
-              onClick={() => setChatType(ConversationType.GROUP)}
+              selected={chatType === 'group'}
+              onClick={() => setChatType('group')}
             />
           </div>
         )}
@@ -121,15 +132,15 @@ export function NewChatModal({ onClose, onCreated }: NewChatModalProps) {
         {step === 'agents' && (
           <div className="space-y-3">
             <p className="text-sm text-ios-text-secondary mb-4">
-              {chatType === ConversationType.SINGLE
+              {chatType === 'single'
                 ? 'Select an agent to chat with:'
-                : chatType === ConversationType.DELEGATOR
+                : chatType === 'delegator'
                 ? 'Select a primary agent (will delegate to others):'
                 : 'Select agents for the group chat:'}
             </p>
 
             <div className="grid grid-cols-2 gap-3">
-              {agents.map(agent => (
+              {agentsArray.map(agent => (
                 <AgentCard
                   key={agent.id}
                   agent={agent}
@@ -163,7 +174,7 @@ export function NewChatModal({ onClose, onCreated }: NewChatModalProps) {
             </p>
 
             <div className="grid grid-cols-2 gap-3">
-              {skills.map(skill => (
+              {skillsArray.map(skill => (
                 <SkillCard
                   key={skill.id}
                   skill={skill}
@@ -258,7 +269,7 @@ function ChatTypeOption({ icon, title, description, selected, onClick }: ChatTyp
 }
 
 interface AgentCardProps {
-  agent: { id: string; name: string; description: string; avatar: string; color: string };
+  agent: { id: string; name: string; description: string; avatar: string | null; color: string };
   selected: boolean;
   onClick: () => void;
 }
@@ -279,7 +290,7 @@ function AgentCard({ agent, selected, onClick }: AgentCardProps) {
           className="w-10 h-10 rounded-full flex items-center justify-center text-white text-lg"
           style={{ backgroundColor: agent.color }}
         >
-          {agent.avatar}
+          {agent.avatar || '🤖'}
         </div>
         {selected && <Check size={16} className="text-ios-blue ml-auto" />}
       </div>

@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Modal, ModalFooter } from './Modal';
 import { useSettingsStore } from '../../stores/settingsStore';
-import { Check, Moon, Sun, Monitor, Key, Server, Info } from 'lucide-react';
+import { Moon, Sun, Monitor, Key, Server, Info } from 'lucide-react';
 import { cn } from '../../utils/cn';
 
 interface SettingsModalProps {
@@ -84,10 +84,10 @@ function AppearanceSettings() {
   const { 
     theme, 
     setTheme, 
-    sidebarCollapsed, 
-    setSidebarCollapsed,
-    messageGrouping,
-    setMessageGrouping 
+    compactMode, 
+    setCompactMode,
+    showTimestamps,
+    setShowTimestamps 
   } = useSettingsStore();
 
   const themes: Array<{ id: 'light' | 'dark' | 'system'; icon: React.ReactNode; label: string }> = [
@@ -131,8 +131,8 @@ function AppearanceSettings() {
         <label className="flex items-center justify-between p-3 bg-ios-secondary rounded-xl cursor-pointer">
           <span className="text-ios-text">Collapsed sidebar</span>
           <ToggleSwitch
-            checked={sidebarCollapsed}
-            onChange={setSidebarCollapsed}
+            checked={compactMode}
+            onChange={setCompactMode}
           />
         </label>
       </div>
@@ -143,8 +143,8 @@ function AppearanceSettings() {
         <label className="flex items-center justify-between p-3 bg-ios-secondary rounded-xl cursor-pointer">
           <span className="text-ios-text">Group consecutive messages</span>
           <ToggleSwitch
-            checked={messageGrouping}
-            onChange={setMessageGrouping}
+            checked={showTimestamps}
+            onChange={setShowTimestamps}
           />
         </label>
       </div>

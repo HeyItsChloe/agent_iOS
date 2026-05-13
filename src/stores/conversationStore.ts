@@ -3,8 +3,8 @@
  */
 
 import { create } from 'zustand';
-import { v4 as uuidv4 } from 'uuid';
-import type { Conversation, ConversationSummary, ConversationType, Message } from '@/types';
+
+import type { Conversation, ConversationSummary, Message } from '@/types';
 
 interface ConversationState {
   // Data

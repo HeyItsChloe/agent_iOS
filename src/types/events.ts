@@ -8,6 +8,7 @@ export type EventType =
   | 'message'
   | 'ping'
   // Server -> Client
+  | 'connected'
   | 'message_received'
   | 'typing_started'
   | 'typing_stopped'
@@ -16,6 +17,7 @@ export type EventType =
   // Agent events
   | 'action'
   | 'observation'
+  | 'agent_state'
   | 'agent_state_change'
   // Conversation events
   | 'conversation_updated';

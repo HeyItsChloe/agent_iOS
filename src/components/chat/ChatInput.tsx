@@ -22,9 +22,12 @@ export function ChatInput({
   const [selectedMention, setSelectedMention] = useState<string | null>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const { agents } = useAgentStore();
+  
+  // Convert Map to array for filtering
+  const agentsArray = Array.from(agents.values());
 
   // Filter agents for mentions (only those in the conversation)
-  const mentionableAgents = agents.filter(a => 
+  const mentionableAgents = agentsArray.filter(a => 
     agentIds.includes(a.id) && 
     a.name.toLowerCase().includes(mentionFilter.toLowerCase())
   );
@@ -46,7 +49,7 @@ export function ChatInput({
     let messageContent = content;
     
     if (mentionMatch) {
-      const mentionedAgent = agents.find(
+      const mentionedAgent = agentsArray.find(
         a => a.name.toLowerCase() === mentionMatch[1].toLowerCase()
       );
       if (mentionedAgent) {
@@ -123,7 +126,7 @@ export function ChatInput({
   };
 
   const selectedAgent = selectedMention 
-    ? agents.find(a => a.id === selectedMention) 
+    ? agentsArray.find(a => a.id === selectedMention) 
     : null;
 
   return (

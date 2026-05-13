@@ -2,12 +2,18 @@ import { useState } from 'react';
 import { Plus, Search, Settings, MessageSquare } from 'lucide-react';
 import { useConversationStore } from '../../stores/conversationStore';
 import { useSettingsStore } from '../../stores/settingsStore';
-import { ConversationSummary } from '../../types/conversation';
+import type { Conversation } from '../../types/conversation';
 import { formatRelativeTime } from '../../utils/formatters';
 
 interface SidebarProps {
   onNewChat: () => void;
   onOpenSettings: () => void;
+}
+
+// Helper to get last message from conversation
+function getLastMessageContent(conv: Conversation): string | null {
+  if (!conv.messages || conv.messages.length === 0) return null;
+  return conv.messages[conv.messages.length - 1].content;
 }
 
 export function Sidebar({ onNewChat, onOpenSettings }: SidebarProps) {
@@ -17,14 +23,16 @@ export function Sidebar({ onNewChat, onOpenSettings }: SidebarProps) {
     activeConversationId, 
     setActiveConversation 
   } = useConversationStore();
-  const { sidebarCollapsed } = useSettingsStore();
+  const { compactMode } = useSettingsStore();
 
-  const filteredConversations = conversations.filter(conv =>
-    conv.title?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    conv.lastMessage?.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  const conversationsArray = Array.from(conversations.values());
+  const filteredConversations = conversationsArray.filter(conv => {
+    const lastMsg = getLastMessageContent(conv);
+    return conv.title?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      lastMsg?.toLowerCase().includes(searchQuery.toLowerCase());
+  });
 
-  if (sidebarCollapsed) {
+  if (compactMode) {
     return (
       <div className="w-16 bg-ios-sidebar border-r border-ios-separator flex flex-col items-center py-4">
         <button
@@ -34,7 +42,7 @@ export function Sidebar({ onNewChat, onOpenSettings }: SidebarProps) {
           <Plus size={20} />
         </button>
         <div className="flex-1 overflow-y-auto w-full">
-          {conversations.slice(0, 10).map(conv => (
+          {conversationsArray.slice(0, 10).map(conv => (
             <button
               key={conv.id}
               onClick={() => setActiveConversation(conv.id)}
@@ -125,13 +133,14 @@ export function Sidebar({ onNewChat, onOpenSettings }: SidebarProps) {
 }
 
 interface ConversationItemProps {
-  conversation: ConversationSummary;
+  conversation: Conversation;
   isActive: boolean;
   onClick: () => void;
 }
 
 function ConversationItem({ conversation, isActive, onClick }: ConversationItemProps) {
   const agentCount = conversation.agentIds.length;
+  const lastMessage = conversation.messages?.[conversation.messages.length - 1];
   
   return (
     <button
@@ -151,11 +160,6 @@ function ConversationItem({ conversation, isActive, onClick }: ConversationItemP
             🤖
           </div>
         )}
-        {conversation.unreadCount > 0 && (
-          <div className="absolute -top-1 -right-1 w-5 h-5 bg-ios-blue rounded-full flex items-center justify-center text-white text-xs font-medium">
-            {conversation.unreadCount > 9 ? '9+' : conversation.unreadCount}
-          </div>
-        )}
       </div>
 
       {/* Content */}
@@ -164,14 +168,14 @@ function ConversationItem({ conversation, isActive, onClick }: ConversationItemP
           <span className={`font-medium truncate ${isActive ? 'text-ios-blue' : 'text-ios-text'}`}>
             {conversation.title || 'New Conversation'}
           </span>
-          {conversation.lastMessageTime && (
+          {lastMessage && (
             <span className="text-xs text-ios-text-secondary flex-shrink-0 ml-2">
-              {formatRelativeTime(new Date(conversation.lastMessageTime))}
+              {formatRelativeTime(new Date(lastMessage.timestamp))}
             </span>
           )}
         </div>
         <p className="text-sm text-ios-text-secondary truncate">
-          {conversation.lastMessage || 'No messages yet'}
+          {lastMessage?.content || 'No messages yet'}
         </p>
       </div>
     </button>

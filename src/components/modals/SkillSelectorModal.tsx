@@ -15,13 +15,14 @@ export function SkillSelectorModal({ onClose }: SkillSelectorModalProps) {
   const [showCreateForm, setShowCreateForm] = useState(false);
   
   const { skills, categories } = useSkillStore();
-  const { activeConversation, updateConversationSkills } = useConversationStore();
+  const { activeConversation, updateConversation } = useConversationStore();
 
   const [selectedSkills, setSelectedSkills] = useState<string[]>(
     activeConversation?.skillIds || []
   );
 
-  const filteredSkills = skills.filter(skill => {
+  const skillsArray = Array.from(skills.values());
+  const filteredSkills = skillsArray.filter(skill => {
     const matchesSearch = 
       skill.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
       skill.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -45,7 +46,7 @@ export function SkillSelectorModal({ onClose }: SkillSelectorModalProps) {
 
   const handleSave = () => {
     if (activeConversation) {
-      updateConversationSkills(activeConversation.id, selectedSkills);
+      updateConversation(activeConversation.id, { skillIds: selectedSkills });
       onClose();
     }
   };
@@ -261,22 +262,25 @@ function CreateSkillForm({ onClose, onCreated }: CreateSkillFormProps) {
   const [content, setContent] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   
-  const { createSkill, categories } = useSkillStore();
+  const { addSkill, categories } = useSkillStore();
 
   const handleSubmit = async () => {
     if (!name.trim() || !content.trim()) return;
     
     setIsSubmitting(true);
     try {
-      const skill = await createSkill({
+      const newSkill = {
+        id: `skill-${Date.now()}`,
         name: name.trim(),
         description: description.trim(),
         icon,
-        category,
+        category: category as 'coding' | 'documentation' | 'analysis' | 'custom',
         triggers: triggers.split(',').map(t => t.trim()).filter(Boolean),
         content: content.trim(),
-      });
-      onCreated(skill.id);
+        isBuiltin: false,
+      };
+      addSkill(newSkill);
+      onCreated(newSkill.id);
     } catch (error) {
       console.error('Failed to create skill:', error);
     } finally {

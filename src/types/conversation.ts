@@ -2,7 +2,7 @@
  * Conversation data types.
  */
 
-import type { Message, MessageFromAPI, parseMessage } from './message';
+import type { Message, MessageFromAPI } from './message';
 
 /** Type of conversation */
 export type ConversationType = 'single' | 'delegator' | 'group';

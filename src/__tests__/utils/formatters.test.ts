@@ -53,7 +53,6 @@ describe('formatters', () => {
     it('formats time in 12-hour format', () => {
       const date = new Date('2024-01-15T14:30:00Z');
       const result = formatTime(date);
-      // The exact format depends on locale, but should include time
       expect(result).toMatch(/\d{1,2}:\d{2}/);
     });
 
@@ -91,7 +90,7 @@ describe('formatters', () => {
     });
 
     it('returns weekday name for dates within the last week', () => {
-      const date = new Date('2024-01-12T12:00:00Z'); // Friday
+      const date = new Date('2024-01-12T12:00:00Z');
       const result = formatDate(date);
       expect(result).toBe('Friday');
     });

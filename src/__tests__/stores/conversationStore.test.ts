@@ -1,240 +1,270 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { useConversationStore } from '../../stores/conversationStore';
-import { ConversationType } from '../../types/conversation';
-import { MessageSender, MessageStatus } from '../../types/message';
+import type { Conversation, Message } from '../../types';
+
+// Helper to create a test conversation
+function createTestConversation(overrides: Partial<Conversation> = {}): Conversation {
+  return {
+    id: 'test-conv-1',
+    title: 'Test Conversation',
+    type: 'single',
+    agentIds: ['agent-1'],
+    skillIds: [],
+    messages: [],
+    createdAt: new Date(),
+    updatedAt: new Date(),
+    typingAgents: {},
+    isArchived: false,
+    ...overrides,
+  };
+}
+
+// Helper to create a test message
+function createTestMessage(overrides: Partial<Message> = {}): Message {
+  return {
+    id: 'msg-1',
+    conversationId: 'test-conv-1',
+    content: 'Test message',
+    sender: 'user',
+    timestamp: new Date(),
+    status: 'sent',
+    subAgentResults: [],
+    ...overrides,
+  };
+}
 
 describe('conversationStore', () => {
   beforeEach(() => {
     // Reset store state before each test
-    useConversationStore.setState({
-      conversations: [],
-      activeConversationId: null,
-    });
+    useConversationStore.getState().reset();
   });
 
-  describe('createConversation', () => {
-    it('creates a new conversation', () => {
-      const { createConversation, conversations } = useConversationStore.getState();
-      
-      const conv = createConversation({
-        type: ConversationType.SINGLE,
-        agentIds: ['agent-1'],
-        skillIds: [],
-      });
+  describe('setConversations', () => {
+    it('sets conversations from array to map', () => {
+      const { setConversations } = useConversationStore.getState();
+      const conv1 = createTestConversation({ id: 'conv-1' });
+      const conv2 = createTestConversation({ id: 'conv-2' });
 
-      expect(conv.id).toBeDefined();
-      expect(conv.type).toBe(ConversationType.SINGLE);
-      expect(conv.agentIds).toEqual(['agent-1']);
-      expect(useConversationStore.getState().conversations).toHaveLength(1);
-    });
+      setConversations([conv1, conv2]);
 
-    it('creates a conversation with custom title', () => {
-      const { createConversation } = useConversationStore.getState();
-      
-      const conv = createConversation({
-        type: ConversationType.SINGLE,
-        agentIds: ['agent-1'],
-        skillIds: [],
-        title: 'My Custom Chat',
-      });
-
-      expect(conv.title).toBe('My Custom Chat');
-    });
-
-    it('creates a group conversation', () => {
-      const { createConversation } = useConversationStore.getState();
-      
-      const conv = createConversation({
-        type: ConversationType.GROUP,
-        agentIds: ['agent-1', 'agent-2', 'agent-3'],
-        skillIds: ['skill-1'],
-      });
-
-      expect(conv.type).toBe(ConversationType.GROUP);
-      expect(conv.agentIds).toHaveLength(3);
-      expect(conv.skillIds).toHaveLength(1);
+      const { conversations } = useConversationStore.getState();
+      expect(conversations.size).toBe(2);
+      expect(conversations.get('conv-1')).toBeDefined();
+      expect(conversations.get('conv-2')).toBeDefined();
     });
   });
 
   describe('setActiveConversation', () => {
-    it('sets the active conversation', () => {
-      const { createConversation, setActiveConversation } = useConversationStore.getState();
+    it('sets the active conversation id', () => {
+      const { setActiveConversation, setConversations } = useConversationStore.getState();
+      const conv = createTestConversation({ id: 'conv-1' });
       
-      const conv = createConversation({
-        type: ConversationType.SINGLE,
-        agentIds: ['agent-1'],
-        skillIds: [],
-      });
+      setConversations([conv]);
+      setActiveConversation('conv-1');
 
-      setActiveConversation(conv.id);
-      
-      expect(useConversationStore.getState().activeConversationId).toBe(conv.id);
+      expect(useConversationStore.getState().activeConversationId).toBe('conv-1');
     });
 
     it('clears active conversation when set to null', () => {
-      const { createConversation, setActiveConversation } = useConversationStore.getState();
+      const { setActiveConversation } = useConversationStore.getState();
       
-      const conv = createConversation({
-        type: ConversationType.SINGLE,
-        agentIds: ['agent-1'],
-        skillIds: [],
-      });
-
-      setActiveConversation(conv.id);
+      setActiveConversation('conv-1');
       setActiveConversation(null);
+
+      expect(useConversationStore.getState().activeConversationId).toBeNull();
+    });
+  });
+
+  describe('addConversation', () => {
+    it('adds a conversation to the map', () => {
+      const { addConversation } = useConversationStore.getState();
+      const conv = createTestConversation({ id: 'new-conv' });
+
+      addConversation(conv);
+
+      const { conversations } = useConversationStore.getState();
+      expect(conversations.has('new-conv')).toBe(true);
+      expect(conversations.get('new-conv')?.title).toBe('Test Conversation');
+    });
+  });
+
+  describe('updateConversation', () => {
+    it('updates an existing conversation', () => {
+      const { setConversations, updateConversation } = useConversationStore.getState();
+      const conv = createTestConversation({ id: 'conv-1', title: 'Original Title' });
       
+      setConversations([conv]);
+      updateConversation('conv-1', { title: 'Updated Title' });
+
+      const { conversations } = useConversationStore.getState();
+      expect(conversations.get('conv-1')?.title).toBe('Updated Title');
+    });
+
+    it('does nothing for non-existent conversation', () => {
+      const { updateConversation } = useConversationStore.getState();
+      
+      // Should not throw
+      updateConversation('non-existent', { title: 'New Title' });
+
+      const { conversations } = useConversationStore.getState();
+      expect(conversations.size).toBe(0);
+    });
+  });
+
+  describe('deleteConversation', () => {
+    it('removes a conversation from the map', () => {
+      const { setConversations, deleteConversation } = useConversationStore.getState();
+      const conv = createTestConversation({ id: 'conv-1' });
+      
+      setConversations([conv]);
+      deleteConversation('conv-1');
+
+      const { conversations } = useConversationStore.getState();
+      expect(conversations.has('conv-1')).toBe(false);
+    });
+
+    it('clears activeConversationId if deleted conversation was active', () => {
+      const { setConversations, setActiveConversation, deleteConversation } = useConversationStore.getState();
+      const conv = createTestConversation({ id: 'conv-1' });
+      
+      setConversations([conv]);
+      setActiveConversation('conv-1');
+      deleteConversation('conv-1');
+
       expect(useConversationStore.getState().activeConversationId).toBeNull();
     });
   });
 
   describe('addMessage', () => {
     it('adds a message to a conversation', () => {
-      const { createConversation, addMessage } = useConversationStore.getState();
+      const { setConversations, addMessage } = useConversationStore.getState();
+      const conv = createTestConversation({ id: 'conv-1' });
       
-      const conv = createConversation({
-        type: ConversationType.SINGLE,
-        agentIds: ['agent-1'],
-        skillIds: [],
+      setConversations([conv]);
+      
+      const message = createTestMessage({ 
+        id: 'msg-1', 
+        conversationId: 'conv-1',
+        content: 'Hello!' 
       });
+      addMessage('conv-1', message);
 
-      addMessage(conv.id, {
-        id: 'msg-1',
-        conversationId: conv.id,
-        content: 'Hello!',
-        sender: MessageSender.USER,
-        status: MessageStatus.SENT,
-        timestamp: new Date(),
-      });
-
-      const updatedConv = useConversationStore.getState().conversations.find(c => c.id === conv.id);
+      const { conversations } = useConversationStore.getState();
+      const updatedConv = conversations.get('conv-1');
       expect(updatedConv?.messages).toHaveLength(1);
       expect(updatedConv?.messages[0].content).toBe('Hello!');
     });
 
     it('does not add message to non-existent conversation', () => {
-      const { addMessage, conversations } = useConversationStore.getState();
-      
-      addMessage('non-existent', {
-        id: 'msg-1',
-        conversationId: 'non-existent',
-        content: 'Hello!',
-        sender: MessageSender.USER,
-        status: MessageStatus.SENT,
-        timestamp: new Date(),
-      });
+      const { addMessage } = useConversationStore.getState();
+      const message = createTestMessage({ conversationId: 'non-existent' });
 
-      expect(useConversationStore.getState().conversations).toHaveLength(0);
+      addMessage('non-existent', message);
+
+      const { conversations } = useConversationStore.getState();
+      expect(conversations.size).toBe(0);
     });
   });
 
   describe('updateMessage', () => {
     it('updates an existing message', () => {
-      const { createConversation, addMessage, updateMessage } = useConversationStore.getState();
+      const { setConversations, addMessage, updateMessage } = useConversationStore.getState();
+      const conv = createTestConversation({ id: 'conv-1' });
       
-      const conv = createConversation({
-        type: ConversationType.SINGLE,
-        agentIds: ['agent-1'],
-        skillIds: [],
+      setConversations([conv]);
+      
+      const message = createTestMessage({ 
+        id: 'msg-1', 
+        conversationId: 'conv-1',
+        status: 'sending' 
       });
+      addMessage('conv-1', message);
+      updateMessage('conv-1', 'msg-1', { status: 'sent' });
 
-      addMessage(conv.id, {
-        id: 'msg-1',
-        conversationId: conv.id,
-        content: 'Hello!',
-        sender: MessageSender.USER,
-        status: MessageStatus.SENDING,
-        timestamp: new Date(),
-      });
-
-      updateMessage(conv.id, 'msg-1', { status: MessageStatus.SENT });
-
-      const updatedConv = useConversationStore.getState().conversations.find(c => c.id === conv.id);
-      expect(updatedConv?.messages[0].status).toBe(MessageStatus.SENT);
+      const { conversations } = useConversationStore.getState();
+      const updatedConv = conversations.get('conv-1');
+      expect(updatedConv?.messages[0].status).toBe('sent');
     });
   });
 
-  describe('deleteConversation', () => {
-    it('deletes a conversation', () => {
-      const { createConversation, deleteConversation } = useConversationStore.getState();
+  describe('setTypingAgent', () => {
+    it('sets typing status for an agent', () => {
+      const { setConversations, setTypingAgent } = useConversationStore.getState();
+      const conv = createTestConversation({ id: 'conv-1' });
       
-      const conv = createConversation({
-        type: ConversationType.SINGLE,
-        agentIds: ['agent-1'],
-        skillIds: [],
-      });
+      setConversations([conv]);
+      setTypingAgent('conv-1', 'agent-1', true);
 
-      deleteConversation(conv.id);
-      
-      expect(useConversationStore.getState().conversations).toHaveLength(0);
+      const { conversations } = useConversationStore.getState();
+      expect(conversations.get('conv-1')?.typingAgents['agent-1']).toBe(true);
     });
 
-    it('clears activeConversationId if deleted conversation was active', () => {
-      const { createConversation, setActiveConversation, deleteConversation } = useConversationStore.getState();
+    it('can clear typing status', () => {
+      const { setConversations, setTypingAgent } = useConversationStore.getState();
+      const conv = createTestConversation({ id: 'conv-1' });
       
-      const conv = createConversation({
-        type: ConversationType.SINGLE,
-        agentIds: ['agent-1'],
-        skillIds: [],
-      });
+      setConversations([conv]);
+      setTypingAgent('conv-1', 'agent-1', true);
+      setTypingAgent('conv-1', 'agent-1', false);
 
-      setActiveConversation(conv.id);
-      deleteConversation(conv.id);
-      
-      expect(useConversationStore.getState().activeConversationId).toBeNull();
+      const { conversations } = useConversationStore.getState();
+      expect(conversations.get('conv-1')?.typingAgents['agent-1']).toBe(false);
     });
   });
 
-  describe('activeConversation getter', () => {
-    it('returns null when no active conversation', () => {
-      expect(useConversationStore.getState().activeConversation).toBeNull();
+  describe('loading states', () => {
+    it('sets loading state', () => {
+      const { setLoading } = useConversationStore.getState();
+      
+      setLoading(true);
+      expect(useConversationStore.getState().isLoading).toBe(true);
+      
+      setLoading(false);
+      expect(useConversationStore.getState().isLoading).toBe(false);
     });
 
-    it('returns the active conversation when set', () => {
-      const { createConversation, setActiveConversation } = useConversationStore.getState();
+    it('sets creating state', () => {
+      const { setCreating } = useConversationStore.getState();
       
-      const conv = createConversation({
-        type: ConversationType.SINGLE,
-        agentIds: ['agent-1'],
-        skillIds: [],
-      });
-
-      setActiveConversation(conv.id);
-      
-      expect(useConversationStore.getState().activeConversation?.id).toBe(conv.id);
+      setCreating(true);
+      expect(useConversationStore.getState().isCreating).toBe(true);
     });
-  });
 
-  describe('updateConversationAgents', () => {
-    it('updates agents in a conversation', () => {
-      const { createConversation, updateConversationAgents } = useConversationStore.getState();
+    it('sets sending state', () => {
+      const { setSending } = useConversationStore.getState();
       
-      const conv = createConversation({
-        type: ConversationType.GROUP,
-        agentIds: ['agent-1'],
-        skillIds: [],
-      });
-
-      updateConversationAgents(conv.id, ['agent-1', 'agent-2', 'agent-3']);
-      
-      const updatedConv = useConversationStore.getState().conversations.find(c => c.id === conv.id);
-      expect(updatedConv?.agentIds).toEqual(['agent-1', 'agent-2', 'agent-3']);
+      setSending(true);
+      expect(useConversationStore.getState().isSending).toBe(true);
     });
   });
 
-  describe('updateConversationSkills', () => {
-    it('updates skills in a conversation', () => {
-      const { createConversation, updateConversationSkills } = useConversationStore.getState();
+  describe('error state', () => {
+    it('sets and clears error', () => {
+      const { setError } = useConversationStore.getState();
       
-      const conv = createConversation({
-        type: ConversationType.SINGLE,
-        agentIds: ['agent-1'],
-        skillIds: [],
-      });
+      setError('Something went wrong');
+      expect(useConversationStore.getState().error).toBe('Something went wrong');
+      
+      setError(null);
+      expect(useConversationStore.getState().error).toBeNull();
+    });
+  });
 
-      updateConversationSkills(conv.id, ['skill-1', 'skill-2']);
+  describe('reset', () => {
+    it('resets to initial state', () => {
+      const { setConversations, setActiveConversation, setError, reset } = useConversationStore.getState();
+      const conv = createTestConversation();
       
-      const updatedConv = useConversationStore.getState().conversations.find(c => c.id === conv.id);
-      expect(updatedConv?.skillIds).toEqual(['skill-1', 'skill-2']);
+      setConversations([conv]);
+      setActiveConversation('test-conv-1');
+      setError('Error');
+      
+      reset();
+      
+      const state = useConversationStore.getState();
+      expect(state.conversations.size).toBe(0);
+      expect(state.activeConversationId).toBeNull();
+      expect(state.error).toBeNull();
     });
   });
 });

@@ -52,12 +52,14 @@ class MockWebSocket {
   static CLOSED = 3;
 
   readyState = MockWebSocket.CONNECTING;
+  url: string;
   onopen: ((event: Event) => void) | null = null;
   onclose: ((event: CloseEvent) => void) | null = null;
   onmessage: ((event: MessageEvent) => void) | null = null;
   onerror: ((event: Event) => void) | null = null;
 
-  constructor(public url: string) {
+  constructor(url: string) {
+    this.url = url;
     setTimeout(() => {
       this.readyState = MockWebSocket.OPEN;
       if (this.onopen) {
@@ -66,8 +68,8 @@ class MockWebSocket {
     }, 0);
   }
 
-  send(data: string) {
-    // Mock send
+  send(_data: string) {
+    // Mock send - no-op
   }
 
   close(code?: number, reason?: string) {
@@ -78,7 +80,7 @@ class MockWebSocket {
   }
 }
 
-global.WebSocket = MockWebSocket as any;
+global.WebSocket = MockWebSocket as unknown as typeof WebSocket;
 
 // Mock Electron API
-(window as any).electronAPI = undefined;
+(window as unknown as { electronAPI: undefined }).electronAPI = undefined;

@@ -1,8 +1,8 @@
 import { useEffect, useRef, useState, useCallback } from 'react';
 import { useConversationStore } from '../stores/conversationStore';
 import { useAgentStore } from '../stores/agentStore';
-import { Message, MessageSender, MessageStatus } from '../types/message';
-import { EventType } from '../types/events';
+import type { Message } from '../types/message';
+import type { EventType } from '../types/events';
 
 interface UseConversationWebSocketReturn {
   connected: boolean;
@@ -23,8 +23,9 @@ export function useConversationWebSocket(
   const [error, setError] = useState<string | null>(null);
   const [typingAgents, setTypingAgents] = useState<string[]>([]);
   
-  const { addMessage, updateMessage } = useConversationStore();
+  const { addMessage } = useConversationStore();
   const { agents } = useAgentStore();
+  const agentsArray = Array.from(agents.values());
 
   const connect = useCallback(() => {
     if (!conversationId) return;
@@ -87,73 +88,82 @@ export function useConversationWebSocket(
     }
   }, [conversationId]);
 
-  const handleEvent = useCallback((data: any) => {
-    const eventType = data.type as EventType;
+  const handleEvent = useCallback((data: { type: EventType; agent_id?: string; error_message?: string; tool_name?: string; state?: string }) => {
+    const eventType = data.type;
 
     switch (eventType) {
-      case EventType.CONNECTED:
+      case 'connected':
         console.log('[WS] Received connected event');
         break;
 
-      case EventType.MESSAGE_RECEIVED:
+      case 'message_received':
         handleMessageReceived(data);
         break;
 
-      case EventType.TYPING_STARTED:
+      case 'typing_started':
         if (data.agent_id) {
           setTypingAgents(prev => 
-            prev.includes(data.agent_id) ? prev : [...prev, data.agent_id]
+            prev.includes(data.agent_id!) ? prev : [...prev, data.agent_id!]
           );
         }
         break;
 
-      case EventType.TYPING_STOPPED:
+      case 'typing_stopped':
         if (data.agent_id) {
           setTypingAgents(prev => prev.filter(id => id !== data.agent_id));
         }
         break;
 
-      case EventType.ERROR:
+      case 'error':
         console.error('[WS] Server error:', data.error_message);
         setError(data.error_message || 'Server error');
         break;
 
-      case EventType.ACTION:
+      case 'action':
         // Agent is executing an action - could show tool usage indicator
         console.log('[WS] Action:', data.tool_name);
         break;
 
-      case EventType.OBSERVATION:
+      case 'observation':
         // Agent received observation from tool
         console.log('[WS] Observation:', data.tool_name);
         break;
 
-      case EventType.AGENT_STATE:
+      case 'agent_state':
         console.log('[WS] Agent state:', data.state);
         break;
 
       default:
         console.log('[WS] Unknown event type:', eventType, data);
     }
-  }, [conversationId, addMessage, agents]);
+  }, [conversationId, addMessage, agentsArray]);
 
-  const handleMessageReceived = useCallback((data: any) => {
+  const handleMessageReceived = useCallback((data: { 
+    message_id?: string; 
+    conversation_id?: string; 
+    content?: string; 
+    sender?: string; 
+    agent_id?: string; 
+    agent_name?: string; 
+    agent_color?: string; 
+    timestamp?: string;
+    sub_agent_results?: Array<{ agentId: string; agentName: string; icon: string; content: string }>;
+  }) => {
     if (!conversationId) return;
 
-    const agent = data.agent_id ? agents.find(a => a.id === data.agent_id) : null;
+    const agent = data.agent_id ? agentsArray.find(a => a.id === data.agent_id) : null;
 
     const message: Message = {
       id: data.message_id || `msg-${Date.now()}`,
       conversationId: data.conversation_id || conversationId,
       content: data.content || '',
-      sender: data.sender === 'user' ? MessageSender.USER : MessageSender.AGENT,
+      sender: data.sender === 'user' ? 'user' : 'agent',
       agentId: data.agent_id,
       agentName: data.agent_name || agent?.name,
       agentColor: data.agent_color || agent?.color,
-      status: MessageStatus.SENT,
+      status: 'sent',
       timestamp: new Date(data.timestamp || Date.now()),
-      toolCalls: data.tool_calls,
-      subAgentResults: data.sub_agent_results,
+      subAgentResults: data.sub_agent_results || [],
     };
 
     addMessage(conversationId, message);
@@ -162,7 +172,7 @@ export function useConversationWebSocket(
     if (data.agent_id) {
       setTypingAgents(prev => prev.filter(id => id !== data.agent_id));
     }
-  }, [conversationId, addMessage, agents]);
+  }, [conversationId, addMessage, agentsArray]);
 
   const sendMessage = useCallback((content: string, mentionAgentId?: string) => {
     if (!wsRef.current || wsRef.current.readyState !== WebSocket.OPEN) {

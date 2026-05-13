@@ -5,7 +5,7 @@ import { TypingIndicator, MultiAgentTyping } from './TypingIndicator';
 import { useConversationStore } from '../../stores/conversationStore';
 import { useAgentStore } from '../../stores/agentStore';
 import { useConversationWebSocket } from '../../hooks/useConversationWebSocket';
-import { Message, MessageSender, MessageStatus } from '../../types/message';
+import type { Message } from '../../types/message';
 import { formatDate } from '../../utils/formatters';
 
 export function ChatView() {
@@ -52,9 +52,10 @@ export function ChatView() {
       id: `temp-${Date.now()}`,
       conversationId: activeConversation.id,
       content,
-      sender: MessageSender.USER,
-      status: MessageStatus.SENDING,
+      sender: 'user',
+      status: 'sending',
       timestamp: new Date(),
+      subAgentResults: [],
     };
 
     // Add to store optimistically
@@ -74,16 +75,16 @@ export function ChatView() {
         
         if (response.ok) {
           updateMessage(activeConversation.id, userMessage.id, { 
-            status: MessageStatus.SENT 
+            status: 'sent' 
           });
         } else {
           updateMessage(activeConversation.id, userMessage.id, { 
-            status: MessageStatus.ERROR 
+            status: 'error' 
           });
         }
-      } catch (error) {
+      } catch {
         updateMessage(activeConversation.id, userMessage.id, { 
-          status: MessageStatus.ERROR 
+          status: 'error' 
         });
       }
     }
@@ -98,8 +99,9 @@ export function ChatView() {
   }
 
   const messages = activeConversation.messages || [];
+  const agentsArray = Array.from(agents.values());
   const typingAgentsList = typingAgents.map(id => {
-    const agent = agents.find(a => a.id === id);
+    const agent = agentsArray.find(a => a.id === id);
     return agent ? { name: agent.name, color: agent.color } : null;
   }).filter(Boolean) as Array<{ name: string; color: string }>;
 
@@ -136,7 +138,7 @@ export function ChatView() {
               const showAvatar = !prevMessage || 
                 prevMessage.sender !== message.sender ||
                 prevMessage.agentId !== message.agentId;
-              const showName = showAvatar && message.sender !== MessageSender.USER;
+              const showName = showAvatar && message.sender !== 'user';
 
               return (
                 <MessageBubble

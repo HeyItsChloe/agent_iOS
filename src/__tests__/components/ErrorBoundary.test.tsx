@@ -63,8 +63,19 @@ describe('ErrorBoundary', () => {
     );
   });
 
+  it('shows Try Again button', () => {
+    render(
+      <ErrorBoundary>
+        <ThrowError shouldThrow={true} />
+      </ErrorBoundary>
+    );
+    
+    expect(screen.getByText('Try Again')).toBeInTheDocument();
+    expect(screen.getByRole('button')).toBeInTheDocument();
+  });
+
   it('resets error state when Try Again is clicked', () => {
-    const { rerender } = render(
+    render(
       <ErrorBoundary>
         <ThrowError shouldThrow={true} />
       </ErrorBoundary>
@@ -75,20 +86,8 @@ describe('ErrorBoundary', () => {
     // Click Try Again
     fireEvent.click(screen.getByText('Try Again'));
     
-    // Rerender with no error - the boundary should try to render children again
+    // The boundary should try to render children again
     // Since our component still throws, it will show error again
-    // But the error state was reset
-  });
-
-  it('shows Try Again button', () => {
-    render(
-      <ErrorBoundary>
-        <ThrowError shouldThrow={true} />
-      </ErrorBoundary>
-    );
-    
-    expect(screen.getByText('Try Again')).toBeInTheDocument();
-    expect(screen.getByRole('button')).toBeInTheDocument();
   });
 });
 

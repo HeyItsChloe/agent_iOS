@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { ChevronDown, ChevronRight, Copy, Check, AlertCircle } from 'lucide-react';
-import { Message, MessageSender, MessageStatus, SubAgentResult } from '../../types/message';
+import type { Message, MessageStatus, SubAgentResult } from '../../types/message';
 import { formatTime } from '../../utils/formatters';
 import { cn } from '../../utils/cn';
 
@@ -11,9 +11,9 @@ interface MessageBubbleProps {
 }
 
 export function MessageBubble({ message, showAvatar = true, showName = true }: MessageBubbleProps) {
-  const isUser = message.sender === MessageSender.USER;
-  const isSystem = message.sender === MessageSender.SYSTEM;
-  const isError = message.status === MessageStatus.ERROR;
+  const isUser = message.sender === 'user';
+  const isSystem = message.sender === 'system';
+  const isError = message.status === 'error';
 
   if (isSystem) {
     return (
@@ -72,12 +72,10 @@ export function MessageBubble({ message, showAvatar = true, showName = true }: M
           
           <MessageContent content={message.content} />
           
-          {/* Tool calls */}
-          {message.toolCalls && message.toolCalls.length > 0 && (
-            <div className="mt-2 space-y-1">
-              {message.toolCalls.map((tool, i) => (
-                <ToolCallBadge key={i} name={tool.name} />
-              ))}
+          {/* Tool name indicator */}
+          {message.toolName && (
+            <div className="mt-2">
+              <ToolCallBadge name={message.toolName} />
             </div>
           )}
         </div>
@@ -175,9 +173,9 @@ function SubAgentResultCard({ result }: { result: SubAgentResult }) {
         {expanded ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
         <div
           className="w-6 h-6 rounded-full flex items-center justify-center text-white text-xs"
-          style={{ backgroundColor: result.agentColor || '#8B5CF6' }}
+          style={{ backgroundColor: '#8B5CF6' }}
         >
-          {result.agentName[0]}
+          {result.icon || result.agentName[0]}
         </div>
         <span className="font-medium text-sm text-ios-text">{result.agentName}</span>
         <span className="text-xs text-ios-text-secondary ml-auto">Sub-agent</span>
@@ -186,18 +184,6 @@ function SubAgentResultCard({ result }: { result: SubAgentResult }) {
       {expanded && (
         <div className="px-3 pb-3 pt-1 border-t border-ios-separator">
           <p className="text-sm text-ios-text whitespace-pre-wrap">{result.content}</p>
-          {result.toolsUsed && result.toolsUsed.length > 0 && (
-            <div className="mt-2 flex flex-wrap gap-1">
-              {result.toolsUsed.map((tool, i) => (
-                <span
-                  key={i}
-                  className="px-2 py-0.5 bg-ios-blue/10 text-ios-blue rounded-full text-xs"
-                >
-                  {tool}
-                </span>
-              ))}
-            </div>
-          )}
         </div>
       )}
     </div>
@@ -206,19 +192,37 @@ function SubAgentResultCard({ result }: { result: SubAgentResult }) {
 
 function MessageStatusIcon({ status }: { status: MessageStatus }) {
   switch (status) {
-    case MessageStatus.SENDING:
-      return <span className="w-3 h-3 border border-ios-text-secondary rounded-full border-t-transparent animate-spin" />;
-    case MessageStatus.SENT:
-      return <Check size={12} />;
-    case MessageStatus.DELIVERED:
+    case 'sending':
       return (
-        <span className="flex -space-x-1">
-          <Check size={12} />
-          <Check size={12} />
-        </span>
+        <>
+          <span className="sr-only">Sending</span>
+          <span className="w-3 h-3 border border-ios-text-secondary rounded-full border-t-transparent animate-spin" />
+        </>
       );
-    case MessageStatus.ERROR:
-      return <AlertCircle size={12} className="text-red-500" />;
+    case 'sent':
+      return (
+        <>
+          <span className="sr-only">Sent</span>
+          <Check size={12} />
+        </>
+      );
+    case 'delivered':
+      return (
+        <>
+          <span className="sr-only">Delivered</span>
+          <span className="flex -space-x-1">
+            <Check size={12} />
+            <Check size={12} />
+          </span>
+        </>
+      );
+    case 'error':
+      return (
+        <>
+          <span className="sr-only">Error</span>
+          <AlertCircle size={12} className="text-red-500" />
+        </>
+      );
     default:
       return null;
   }
