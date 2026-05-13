@@ -58,12 +58,15 @@ def get_available_models() -> list[dict[str, str]]:
     """Get list of available models.
     
     Returns:
-        List of model configurations with id and name
+        List of model configurations with id, name, and optional base_url
     """
     return [
-        {"id": "anthropic/claude-sonnet-4-5-20250929", "name": "Claude Sonnet 4.5"},
-        {"id": "anthropic/claude-haiku-3-5-20241022", "name": "Claude Haiku 3.5"},
-        {"id": "openai/gpt-4o", "name": "GPT-4o"},
-        {"id": "openai/gpt-4o-mini", "name": "GPT-4o Mini"},
-        {"id": "openhands/claude-sonnet-4-5-20250929", "name": "Claude Sonnet 4.5 (OpenHands)"},
+        # Direct provider APIs (use your own API keys)
+        {"id": "anthropic/claude-sonnet-4-5-20250929", "name": "Claude Sonnet 4.5 (Anthropic)", "provider": "anthropic"},
+        {"id": "anthropic/claude-haiku-3-5-20241022", "name": "Claude Haiku 3.5 (Anthropic)", "provider": "anthropic"},
+        {"id": "openai/gpt-4o", "name": "GPT-4o (OpenAI)", "provider": "openai"},
+        {"id": "openai/gpt-4o-mini", "name": "GPT-4o Mini (OpenAI)", "provider": "openai"},
+        # OpenHands API (use OpenHands API key)
+        {"id": "openhands/claude-sonnet-4-5-20250929", "name": "Claude Sonnet 4.5 (OpenHands)", "provider": "openhands", "base_url": "https://app.all-hands.dev"},
+        {"id": "openhands/claude-haiku-3-5-20241022", "name": "Claude Haiku 3.5 (OpenHands)", "provider": "openhands", "base_url": "https://app.all-hands.dev"},
     ]

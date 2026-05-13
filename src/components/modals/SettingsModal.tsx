@@ -152,6 +152,13 @@ function AppearanceSettings() {
   );
 }
 
+interface ModelConfig {
+  id: string;
+  name: string;
+  provider?: string;
+  base_url?: string;
+}
+
 function LLMSettings() {
   const [model, setModel] = useState('');
   const [apiKey, setApiKey] = useState('');
@@ -161,6 +168,7 @@ function LLMSettings() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+  const [availableModels, setAvailableModels] = useState<ModelConfig[]>([]);
 
   // Fetch current settings
   useEffect(() => {
@@ -175,6 +183,7 @@ function LLMSettings() {
         setModel(data.model || '');
         setHasApiKey(data.has_api_key || false);
         setBaseUrl(data.base_url || '');
+        setAvailableModels(data.available_models || []);
       }
       
       const statusResponse = await fetch('/api/settings/sdk-status');
@@ -186,6 +195,18 @@ function LLMSettings() {
       console.error('Failed to fetch settings:', error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleModelChange = (newModel: string) => {
+    setModel(newModel);
+    // Auto-set base URL for OpenHands models
+    const modelConfig = availableModels.find(m => m.id === newModel);
+    if (modelConfig?.base_url) {
+      setBaseUrl(modelConfig.base_url);
+    } else if (modelConfig?.provider !== 'openhands') {
+      // Clear base URL for direct provider models
+      setBaseUrl('');
     }
   };
 
@@ -219,13 +240,9 @@ function LLMSettings() {
     }
   };
 
-  const models = [
-    { id: 'anthropic/claude-sonnet-4-5-20250929', name: 'Claude Sonnet 4.5' },
-    { id: 'anthropic/claude-haiku-3-5-20241022', name: 'Claude Haiku 3.5' },
-    { id: 'openai/gpt-4o', name: 'GPT-4o' },
-    { id: 'openai/gpt-4o-mini', name: 'GPT-4o Mini' },
-    { id: 'openhands/claude-sonnet-4-5-20250929', name: 'Claude Sonnet 4.5 (OpenHands)' },
-  ];
+  // Get current provider for API key hint
+  const currentModelConfig = availableModels.find(m => m.id === model);
+  const currentProvider = currentModelConfig?.provider || 'unknown';
 
   if (loading) {
     return (
@@ -278,13 +295,22 @@ function LLMSettings() {
         <label className="block text-sm font-medium text-ios-text mb-1">Model</label>
         <select
           value={model}
-          onChange={(e) => setModel(e.target.value)}
+          onChange={(e) => handleModelChange(e.target.value)}
           className="w-full px-4 py-2 bg-ios-secondary rounded-lg text-ios-text focus:outline-none focus:ring-2 focus:ring-ios-blue"
         >
-          {models.map(m => (
-            <option key={m.id} value={m.id}>{m.name}</option>
-          ))}
+          {availableModels.length > 0 ? (
+            availableModels.map(m => (
+              <option key={m.id} value={m.id}>{m.name}</option>
+            ))
+          ) : (
+            <option value="">Loading models...</option>
+          )}
         </select>
+        {currentProvider && (
+          <p className="text-xs text-ios-text-secondary mt-1">
+            Provider: {currentProvider === 'openhands' ? 'OpenHands (use OpenHands API key)' : currentProvider}
+          </p>
+        )}
       </div>
 
       {/* API Key */}
@@ -300,24 +326,33 @@ function LLMSettings() {
           className="w-full px-4 py-2 bg-ios-secondary rounded-lg text-ios-text placeholder-ios-text-secondary focus:outline-none focus:ring-2 focus:ring-ios-blue"
         />
         <p className="text-xs text-ios-text-secondary mt-1">
-          Leave blank to keep current key. Supports Anthropic, OpenAI, and other providers.
+          {currentProvider === 'openhands' 
+            ? 'Use your OpenHands API key from app.all-hands.dev'
+            : currentProvider === 'anthropic'
+            ? 'Use your Anthropic API key from console.anthropic.com'
+            : currentProvider === 'openai'
+            ? 'Use your OpenAI API key from platform.openai.com'
+            : 'Leave blank to keep current key'}
         </p>
       </div>
 
-      {/* Base URL (optional) */}
+      {/* Base URL (auto-set for OpenHands, editable for others) */}
       <div>
         <label className="block text-sm font-medium text-ios-text mb-1">
-          Base URL (optional)
+          Base URL {currentProvider === 'openhands' ? '(auto-configured)' : '(optional)'}
         </label>
         <input
           type="text"
           value={baseUrl}
           onChange={(e) => setBaseUrl(e.target.value)}
-          placeholder="https://api.openai.com/v1"
+          placeholder={currentProvider === 'openhands' ? 'https://app.all-hands.dev' : 'Leave empty for default'}
           className="w-full px-4 py-2 bg-ios-secondary rounded-lg text-ios-text placeholder-ios-text-secondary focus:outline-none focus:ring-2 focus:ring-ios-blue"
+          readOnly={currentProvider === 'openhands'}
         />
         <p className="text-xs text-ios-text-secondary mt-1">
-          For custom API endpoints or self-hosted models
+          {currentProvider === 'openhands' 
+            ? 'Automatically set for OpenHands models'
+            : 'For custom API endpoints or self-hosted models'}
         </p>
       </div>
 
