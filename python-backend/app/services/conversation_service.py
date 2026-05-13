@@ -354,14 +354,15 @@ class ConversationService:
         api_key = settings.openhands_api_key.get_secret_value()
         
         # Send typing indicator
-        typing_event_data = {
-            "type": "typing",
-            "conversation_id": conversation.id,
-            "agent_id": agent_id,
-            "agent_name": agent_model.name,
-            "is_typing": True,
-        }
-        await self._broadcast_event(conversation.id, typing_event_data)
+        await self._broadcast_event(
+            conversation.id,
+            TypingEvent(
+                conversation_id=conversation.id,
+                agent_id=agent_id,
+                agent_name=agent_model.name,
+                is_typing=True,
+            ),
+        )
         
         try:
             # Run on OpenHands Cloud
@@ -374,8 +375,15 @@ class ConversationService:
             )
             
             # Stop typing indicator
-            typing_event_data["is_typing"] = False
-            await self._broadcast_event(conversation.id, typing_event_data)
+            await self._broadcast_event(
+                conversation.id,
+                TypingEvent(
+                    conversation_id=conversation.id,
+                    agent_id=agent_id,
+                    agent_name=agent_model.name,
+                    is_typing=False,
+                ),
+            )
             
             # Create response message
             response_content = response_text if response_text else f"Conversation completed. View at: https://app.all-hands.dev/conversations/{cloud_conv_id}"
@@ -393,18 +401,19 @@ class ConversationService:
                 metadata={"cloud_conversation_id": cloud_conv_id},
             )
             
-            # Broadcast the response as a dict
-            msg_event_data = {
-                "type": "message_received",
-                "conversation_id": conversation.id,
-                "message_id": message_id,
-                "content": response_content,
-                "sender": "agent",
-                "agent_id": agent_id,
-                "agent_name": agent_model.name,
-                "agent_color": agent_model.color,
-            }
-            await self._broadcast_event(conversation.id, msg_event_data)
+            # Broadcast the response using proper MessageEvent
+            await self._broadcast_event(
+                conversation.id,
+                MessageEvent(
+                    conversation_id=conversation.id,
+                    message_id=message_id,
+                    content=response_content,
+                    sender="agent",
+                    agent_id=agent_id,
+                    agent_name=agent_model.name,
+                    agent_color=agent_model.color,
+                ),
+            )
             
             return response_message
             
@@ -414,8 +423,15 @@ class ConversationService:
             traceback.print_exc()
             
             # Stop typing indicator
-            typing_event_data["is_typing"] = False
-            await self._broadcast_event(conversation.id, typing_event_data)
+            await self._broadcast_event(
+                conversation.id,
+                TypingEvent(
+                    conversation_id=conversation.id,
+                    agent_id=agent_id,
+                    agent_name=agent_model.name,
+                    is_typing=False,
+                ),
+            )
             
             return await self._generate_fallback_response(
                 conversation, user_content, agent_id,
