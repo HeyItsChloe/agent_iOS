@@ -101,8 +101,10 @@ cd agent_iOS
 # Install frontend dependencies
 npm install
 
-# Install backend dependencies
+# Install backend dependencies (use virtual environment)
 cd python-backend
+python3 -m venv venv
+source venv/bin/activate  # On Windows: venv\Scripts\activate
 pip install -r requirements.txt
 cd ..
 
@@ -112,6 +114,29 @@ cp .env.example .env
 
 # Start the app
 npm run electron:dev
+```
+
+### macOS Quick Start
+
+```bash
+# Clone and install
+git clone https://github.com/HeyItsChloe/agent_iOS.git
+cd agent_iOS
+npm install
+
+# Python setup (requires Python 3.10+)
+cd python-backend
+python3 -m venv venv
+source venv/bin/activate
+pip install -r requirements.txt
+cd ..
+
+# Run in development mode
+npm run electron:dev
+
+# Or build the .app bundle
+npm run electron:build
+# Find the app at: dist-electron/mac-arm64/iOS Agent Messenger.app
 ```
 
 ### Using Docker
