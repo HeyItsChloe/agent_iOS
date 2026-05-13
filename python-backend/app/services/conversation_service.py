@@ -245,9 +245,18 @@ class ConversationService:
     async def _broadcast_event(self, conversation_id: str, event: Any):
         """Broadcast an event to all connected WebSockets for a conversation."""
         websockets = self._websockets.get(conversation_id, [])
+        
+        # Convert to dict if needed
+        if hasattr(event, 'model_dump'):
+            event_data = event.model_dump(mode='json')
+        elif isinstance(event, dict):
+            event_data = event
+        else:
+            event_data = {"data": str(event)}
+        
         for ws in websockets:
             try:
-                await ws.send_json(event.model_dump(mode='json'))
+                await ws.send_json(event_data)
             except Exception as e:
                 print(f"[WS] Failed to broadcast event: {e}")
     
@@ -371,8 +380,9 @@ class ConversationService:
             # Create response message
             response_content = response_text if response_text else f"Conversation completed. View at: https://app.all-hands.dev/conversations/{cloud_conv_id}"
             
+            message_id = str(uuid4())
             response_message = Message(
-                id=str(uuid4()),
+                id=message_id,
                 conversation_id=conversation.id,
                 content=response_content,
                 sender=MessageSender.AGENT,
@@ -383,12 +393,18 @@ class ConversationService:
                 metadata={"cloud_conversation_id": cloud_conv_id},
             )
             
-            # Broadcast the response
-            msg_event = MessageEvent(
-                conversation_id=conversation.id,
-                message=response_message.model_dump(mode='json'),
-            )
-            await self._broadcast_event(conversation.id, msg_event.model_dump(mode='json'))
+            # Broadcast the response as a dict
+            msg_event_data = {
+                "type": "message_received",
+                "conversation_id": conversation.id,
+                "message_id": message_id,
+                "content": response_content,
+                "sender": "agent",
+                "agent_id": agent_id,
+                "agent_name": agent_model.name,
+                "agent_color": agent_model.color,
+            }
+            await self._broadcast_event(conversation.id, msg_event_data)
             
             return response_message
             
