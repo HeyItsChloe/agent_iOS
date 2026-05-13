@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Loading...</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Segoe UI', Roboto, sans-serif;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+      background: transparent;
+      -webkit-app-region: drag;
+    }
+
+    .splash-container {
+      background: linear-gradient(145deg, #ffffff, #f5f5f7);
+      border-radius: 20px;
+      padding: 40px;
+      text-align: center;
+      box-shadow: 0 10px 40px rgba(0, 0, 0, 0.15);
+      min-width: 300px;
+    }
+
+    @media (prefers-color-scheme: dark) {
+      .splash-container {
+        background: linear-gradient(145deg, #2c2c2e, #1c1c1e);
+        box-shadow: 0 10px 40px rgba(0, 0, 0, 0.4);
+      }
+
+      .app-title {
+        color: #ffffff;
+      }
+
+      .loading-text {
+        color: #8e8e93;
+      }
+    }
+
+    .app-icon {
+      width: 80px;
+      height: 80px;
+      margin: 0 auto 20px;
+      background: linear-gradient(145deg, #007AFF, #0055CC);
+      border-radius: 18px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      box-shadow: 0 4px 12px rgba(0, 122, 255, 0.3);
+    }
+
+    .app-icon svg {
+      width: 48px;
+      height: 48px;
+      fill: white;
+    }
+
+    .app-title {
+      font-size: 22px;
+      font-weight: 600;
+      color: #1c1c1e;
+      margin-bottom: 8px;
+      letter-spacing: -0.5px;
+    }
+
+    .loading-text {
+      font-size: 14px;
+      color: #8e8e93;
+      margin-bottom: 20px;
+    }
+
+    .loading-bar {
+      width: 200px;
+      height: 4px;
+      background: #e5e5ea;
+      border-radius: 2px;
+      margin: 0 auto;
+      overflow: hidden;
+    }
+
+    @media (prefers-color-scheme: dark) {
+      .loading-bar {
+        background: #3a3a3c;
+      }
+    }
+
+    .loading-bar::after {
+      content: '';
+      display: block;
+      width: 50%;
+      height: 100%;
+      background: linear-gradient(90deg, #007AFF, #5AC8FA);
+      border-radius: 2px;
+      animation: loading 1.5s ease-in-out infinite;
+    }
+
+    @keyframes loading {
+      0% {
+        transform: translateX(-100%);
+      }
+      50% {
+        transform: translateX(100%);
+      }
+      100% {
+        transform: translateX(200%);
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="splash-container">
+    <div class="app-icon">
+      <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+        <path d="M20 2H4c-1.1 0-2 .9-2 2v18l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm0 14H5.17L4 17.17V4h16v12z"/>
+        <circle cx="8" cy="10" r="1.5"/>
+        <circle cx="12" cy="10" r="1.5"/>
+        <circle cx="16" cy="10" r="1.5"/>
+      </svg>
+    </div>
+    <h1 class="app-title">iOS Agent Messenger</h1>
+    <p class="loading-text">Starting backend server...</p>
+    <div class="loading-bar"></div>
+  </div>
+</body>
+</html>

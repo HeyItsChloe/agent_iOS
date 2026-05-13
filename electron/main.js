@@ -1,29 +1,70 @@
-const { app, BrowserWindow, ipcMain } = require('electron');
+const { app, BrowserWindow, ipcMain, Menu, shell, dialog, nativeTheme } = require('electron');
 const path = require('path');
-const { spawn } = require('child_process');
+const { spawn, execSync } = require('child_process');
+const http = require('http');
+
+// App configuration
+const APP_NAME = 'iOS Agent Messenger';
+const PYTHON_BACKEND_PORT = process.env.BACKEND_PORT || 8765;
+const BACKEND_STARTUP_TIMEOUT = 30000; // 30 seconds
+const HEALTH_CHECK_INTERVAL = 1000; // 1 second
 
 let mainWindow = null;
 let pythonProcess = null;
+let splashWindow = null;
 
 const isDev = process.env.NODE_ENV === 'development' || !app.isPackaged;
-const PYTHON_BACKEND_PORT = 8765;
 
+/**
+ * Create the splash/loading window.
+ */
+function createSplashWindow() {
+  splashWindow = new BrowserWindow({
+    width: 400,
+    height: 300,
+    frame: false,
+    transparent: true,
+    alwaysOnTop: true,
+    skipTaskbar: true,
+    resizable: false,
+    webPreferences: {
+      nodeIntegration: false,
+      contextIsolation: true,
+    },
+  });
+
+  splashWindow.loadFile(path.join(__dirname, 'splash.html'));
+  splashWindow.center();
+}
+
+/**
+ * Create the main application window.
+ */
 function createWindow() {
-  mainWindow = new BrowserWindow({
+  const windowState = {
     width: 1200,
     height: 800,
     minWidth: 800,
     minHeight: 600,
-    titleBarStyle: 'hiddenInset',
+  };
+
+  mainWindow = new BrowserWindow({
+    ...windowState,
+    titleBarStyle: process.platform === 'darwin' ? 'hiddenInset' : 'default',
     trafficLightPosition: { x: 16, y: 16 },
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
       contextIsolation: true,
       nodeIntegration: false,
+      sandbox: true,
     },
-    backgroundColor: '#F2F2F7',
+    backgroundColor: nativeTheme.shouldUseDarkColors ? '#1C1C1E' : '#F2F2F7',
     show: false,
+    icon: path.join(__dirname, '../assets/icon.png'),
   });
+
+  // Create application menu
+  createAppMenu();
 
   // Load the app
   if (isDev) {
@@ -33,50 +74,274 @@ function createWindow() {
     mainWindow.loadFile(path.join(__dirname, '../dist/index.html'));
   }
 
+  // Show window when ready
   mainWindow.once('ready-to-show', () => {
+    if (splashWindow) {
+      splashWindow.destroy();
+      splashWindow = null;
+    }
     mainWindow.show();
+    mainWindow.focus();
+  });
+
+  // Handle external links
+  mainWindow.webContents.setWindowOpenHandler(({ url }) => {
+    shell.openExternal(url);
+    return { action: 'deny' };
   });
 
   mainWindow.on('closed', () => {
     mainWindow = null;
   });
+
+  // Update theme on system change
+  nativeTheme.on('updated', () => {
+    mainWindow?.webContents.send('theme-changed', nativeTheme.shouldUseDarkColors ? 'dark' : 'light');
+  });
 }
 
-function startPythonBackend() {
+/**
+ * Create the application menu.
+ */
+function createAppMenu() {
+  const template = [
+    ...(process.platform === 'darwin' ? [{
+      label: APP_NAME,
+      submenu: [
+        { role: 'about' },
+        { type: 'separator' },
+        { role: 'services' },
+        { type: 'separator' },
+        { role: 'hide' },
+        { role: 'hideOthers' },
+        { role: 'unhide' },
+        { type: 'separator' },
+        { role: 'quit' },
+      ],
+    }] : []),
+    {
+      label: 'File',
+      submenu: [
+        {
+          label: 'New Conversation',
+          accelerator: 'CmdOrCtrl+N',
+          click: () => mainWindow?.webContents.send('menu-new-conversation'),
+        },
+        { type: 'separator' },
+        { role: process.platform === 'darwin' ? 'close' : 'quit' },
+      ],
+    },
+    {
+      label: 'Edit',
+      submenu: [
+        { role: 'undo' },
+        { role: 'redo' },
+        { type: 'separator' },
+        { role: 'cut' },
+        { role: 'copy' },
+        { role: 'paste' },
+        { role: 'selectAll' },
+      ],
+    },
+    {
+      label: 'View',
+      submenu: [
+        { role: 'reload' },
+        { role: 'forceReload' },
+        { role: 'toggleDevTools' },
+        { type: 'separator' },
+        { role: 'resetZoom' },
+        { role: 'zoomIn' },
+        { role: 'zoomOut' },
+        { type: 'separator' },
+        { role: 'togglefullscreen' },
+      ],
+    },
+    {
+      label: 'Window',
+      submenu: [
+        { role: 'minimize' },
+        { role: 'zoom' },
+        ...(process.platform === 'darwin' ? [
+          { type: 'separator' },
+          { role: 'front' },
+        ] : [
+          { role: 'close' },
+        ]),
+      ],
+    },
+    {
+      label: 'Help',
+      submenu: [
+        {
+          label: 'Documentation',
+          click: () => shell.openExternal('https://github.com/HeyItsChloe/agent_iOS#readme'),
+        },
+        {
+          label: 'Report Issue',
+          click: () => shell.openExternal('https://github.com/HeyItsChloe/agent_iOS/issues'),
+        },
+        { type: 'separator' },
+        {
+          label: 'About OpenHands SDK',
+          click: () => shell.openExternal('https://docs.openhands.dev/sdk'),
+        },
+      ],
+    },
+  ];
+
+  const menu = Menu.buildFromTemplate(template);
+  Menu.setApplicationMenu(menu);
+}
+
+/**
+ * Check if Python is available.
+ */
+function checkPythonAvailable() {
+  const pythonCommands = process.platform === 'win32' 
+    ? ['python', 'python3', 'py'] 
+    : ['python3', 'python'];
+
+  for (const cmd of pythonCommands) {
+    try {
+      execSync(`${cmd} --version`, { stdio: 'ignore' });
+      return cmd;
+    } catch {
+      continue;
+    }
+  }
+  return null;
+}
+
+/**
+ * Wait for the backend to be healthy.
+ */
+function waitForBackend(timeout = BACKEND_STARTUP_TIMEOUT) {
+  return new Promise((resolve, reject) => {
+    const startTime = Date.now();
+
+    const checkHealth = () => {
+      const req = http.request({
+        hostname: '127.0.0.1',
+        port: PYTHON_BACKEND_PORT,
+        path: '/health',
+        method: 'GET',
+        timeout: 1000,
+      }, (res) => {
+        if (res.statusCode === 200) {
+          resolve(true);
+        } else {
+          scheduleNextCheck();
+        }
+      });
+
+      req.on('error', () => scheduleNextCheck());
+      req.on('timeout', () => {
+        req.destroy();
+        scheduleNextCheck();
+      });
+      req.end();
+    };
+
+    const scheduleNextCheck = () => {
+      if (Date.now() - startTime > timeout) {
+        reject(new Error('Backend startup timeout'));
+      } else {
+        setTimeout(checkHealth, HEALTH_CHECK_INTERVAL);
+      }
+    };
+
+    checkHealth();
+  });
+}
+
+/**
+ * Start the Python backend server.
+ */
+async function startPythonBackend() {
+  const pythonExecutable = checkPythonAvailable();
+  
+  if (!pythonExecutable) {
+    dialog.showErrorBox(
+      'Python Not Found',
+      'Python 3 is required to run the backend server.\n\nPlease install Python 3.10+ and try again.'
+    );
+    app.quit();
+    return false;
+  }
+
   const pythonPath = isDev
     ? path.join(__dirname, '../python-backend')
     : path.join(process.resourcesPath, 'python-backend');
 
-  const pythonExecutable = process.platform === 'win32' ? 'python' : 'python3';
+  console.log(`[Backend] Starting Python backend from: ${pythonPath}`);
+  console.log(`[Backend] Using Python: ${pythonExecutable}`);
 
-  pythonProcess = spawn(pythonExecutable, ['-m', 'uvicorn', 'app.main:app', '--host', '127.0.0.1', '--port', String(PYTHON_BACKEND_PORT)], {
-    cwd: pythonPath,
-    env: {
-      ...process.env,
-      PYTHONUNBUFFERED: '1',
-    },
-  });
+  pythonProcess = spawn(
+    pythonExecutable,
+    ['-m', 'uvicorn', 'app.main:app', '--host', '127.0.0.1', '--port', String(PYTHON_BACKEND_PORT)],
+    {
+      cwd: pythonPath,
+      env: {
+        ...process.env,
+        PYTHONUNBUFFERED: '1',
+        PYTHONDONTWRITEBYTECODE: '1',
+      },
+      stdio: ['ignore', 'pipe', 'pipe'],
+    }
+  );
 
   pythonProcess.stdout.on('data', (data) => {
-    console.log(`[Python Backend] ${data}`);
+    console.log(`[Backend] ${data.toString().trim()}`);
   });
 
   pythonProcess.stderr.on('data', (data) => {
-    console.error(`[Python Backend Error] ${data}`);
+    console.error(`[Backend] ${data.toString().trim()}`);
   });
 
   pythonProcess.on('close', (code) => {
-    console.log(`[Python Backend] Process exited with code ${code}`);
+    console.log(`[Backend] Process exited with code ${code}`);
+    pythonProcess = null;
   });
 
   pythonProcess.on('error', (err) => {
-    console.error('[Python Backend] Failed to start:', err);
+    console.error('[Backend] Failed to start:', err);
+    pythonProcess = null;
   });
+
+  // Wait for backend to be healthy
+  try {
+    await waitForBackend();
+    console.log('[Backend] Server is ready');
+    return true;
+  } catch (error) {
+    console.error('[Backend] Failed to start:', error.message);
+    stopPythonBackend();
+    return false;
+  }
 }
 
+/**
+ * Stop the Python backend server.
+ */
 function stopPythonBackend() {
   if (pythonProcess) {
-    pythonProcess.kill();
+    console.log('[Backend] Stopping server...');
+    
+    // Graceful shutdown
+    if (process.platform === 'win32') {
+      spawn('taskkill', ['/pid', pythonProcess.pid, '/f', '/t']);
+    } else {
+      pythonProcess.kill('SIGTERM');
+      
+      // Force kill after 5 seconds if still running
+      setTimeout(() => {
+        if (pythonProcess) {
+          pythonProcess.kill('SIGKILL');
+        }
+      }, 5000);
+    }
+    
     pythonProcess = null;
   }
 }
@@ -90,12 +355,43 @@ ipcMain.handle('get-websocket-url', () => {
   return `ws://127.0.0.1:${PYTHON_BACKEND_PORT}`;
 });
 
+ipcMain.handle('get-app-version', () => {
+  return app.getVersion();
+});
+
+ipcMain.handle('get-platform', () => {
+  return process.platform;
+});
+
+ipcMain.handle('show-open-dialog', async (event, options) => {
+  const result = await dialog.showOpenDialog(mainWindow, options);
+  return result;
+});
+
+ipcMain.handle('show-save-dialog', async (event, options) => {
+  const result = await dialog.showSaveDialog(mainWindow, options);
+  return result;
+});
+
 // App lifecycle
-app.whenReady().then(() => {
-  startPythonBackend();
+app.whenReady().then(async () => {
+  // Show splash screen
+  createSplashWindow();
+
+  // Start backend
+  const backendStarted = await startPythonBackend();
   
-  // Wait a bit for Python backend to start
-  setTimeout(createWindow, 2000);
+  if (!backendStarted) {
+    dialog.showErrorBox(
+      'Backend Error',
+      'Failed to start the backend server.\n\nPlease check that all dependencies are installed.'
+    );
+    app.quit();
+    return;
+  }
+
+  // Create main window
+  createWindow();
 
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) {
@@ -112,5 +408,11 @@ app.on('window-all-closed', () => {
 });
 
 app.on('before-quit', () => {
+  stopPythonBackend();
+});
+
+// Handle uncaught exceptions
+process.on('uncaughtException', (error) => {
+  console.error('Uncaught exception:', error);
   stopPythonBackend();
 });

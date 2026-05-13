@@ -1,0 +1,48 @@
+version: '3.8'
+
+services:
+  ios-agent-messenger:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "8765:8765"
+    environment:
+      - HOST=0.0.0.0
+      - PORT=8765
+      - LOG_LEVEL=info
+      # OpenHands SDK configuration (optional)
+      - OPENHANDS_API_KEY=${OPENHANDS_API_KEY:-}
+      - LLM_MODEL=${LLM_MODEL:-gpt-4}
+      - LLM_API_KEY=${LLM_API_KEY:-}
+    volumes:
+      # Persist conversation data
+      - messenger-data:/app/data
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8765/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+
+  # Development service with hot reload
+  dev:
+    build:
+      context: .
+      dockerfile: Dockerfile.dev
+    ports:
+      - "5173:5173"  # Vite dev server
+      - "8765:8765"  # Backend
+    environment:
+      - NODE_ENV=development
+      - VITE_BACKEND_URL=http://localhost:8765
+    volumes:
+      - .:/app
+      - /app/node_modules
+      - /app/python-backend/__pycache__
+    profiles:
+      - dev
+
+volumes:
+  messenger-data:

@@ -1,19 +1,46 @@
 const { contextBridge, ipcRenderer } = require('electron');
 
-// Expose protected methods to the renderer process
+/**
+ * Expose Electron APIs to the renderer process securely.
+ * All methods use contextBridge for security (context isolation).
+ */
 contextBridge.exposeInMainWorld('electronAPI', {
-  // Get backend URLs
+  // Backend URLs
   getBackendUrl: () => ipcRenderer.invoke('get-backend-url'),
   getWebSocketUrl: () => ipcRenderer.invoke('get-websocket-url'),
   
-  // Platform info
+  // App info
+  getAppVersion: () => ipcRenderer.invoke('get-app-version'),
+  getPlatform: () => ipcRenderer.invoke('get-platform'),
+  
+  // Platform info (sync)
   platform: process.platform,
+  isElectron: true,
+  isMac: process.platform === 'darwin',
+  isWindows: process.platform === 'win32',
+  isLinux: process.platform === 'linux',
+  
+  // Dialogs
+  showOpenDialog: (options) => ipcRenderer.invoke('show-open-dialog', options),
+  showSaveDialog: (options) => ipcRenderer.invoke('show-save-dialog', options),
   
   // Window controls (for custom titlebar if needed)
   minimizeWindow: () => ipcRenderer.send('minimize-window'),
   maximizeWindow: () => ipcRenderer.send('maximize-window'),
   closeWindow: () => ipcRenderer.send('close-window'),
+  
+  // Event listeners (return cleanup function)
+  onThemeChanged: (callback) => {
+    const listener = (event, theme) => callback(theme);
+    ipcRenderer.on('theme-changed', listener);
+    return () => ipcRenderer.removeListener('theme-changed', listener);
+  },
+  
+  onMenuNewConversation: (callback) => {
+    const listener = () => callback();
+    ipcRenderer.on('menu-new-conversation', listener);
+    return () => ipcRenderer.removeListener('menu-new-conversation', listener);
+  },
 });
 
-// Type definitions for TypeScript
-// These are just for documentation, the actual types are in src/types/electron.d.ts
+// Type definitions for TypeScript are in src/types/electron.d.ts

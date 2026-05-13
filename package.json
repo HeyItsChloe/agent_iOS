@@ -54,25 +54,55 @@
     "wait-on": "^7.2.0"
   },
   "build": {
-    "appId": "com.heyitschloe.agent-ios",
-    "productName": "Agent iOS",
+    "appId": "com.heyitschloe.ios-agent-messenger",
+    "productName": "iOS Agent Messenger",
+    "copyright": "Copyright © 2024 HeyItsChloe",
     "directories": {
-      "output": "dist-electron"
+      "output": "dist-electron",
+      "buildResources": "assets"
     },
     "files": [
       "dist/**/*",
       "electron/**/*",
-      "python-backend/**/*"
+      "python-backend/**/*",
+      "!python-backend/tests/**/*",
+      "!python-backend/**/__pycache__/**/*"
+    ],
+    "extraResources": [
+      {
+        "from": "python-backend",
+        "to": "python-backend",
+        "filter": ["**/*", "!tests/**", "!**/__pycache__/**"]
+      }
     ],
     "mac": {
       "category": "public.app-category.developer-tools",
-      "target": "dmg"
+      "target": ["dmg", "zip"],
+      "icon": "assets/icon.icns",
+      "darkModeSupport": true,
+      "hardenedRuntime": true,
+      "gatekeeperAssess": false
     },
     "win": {
-      "target": "nsis"
+      "target": ["nsis", "portable"],
+      "icon": "assets/icon.ico"
     },
     "linux": {
-      "target": "AppImage"
+      "target": ["AppImage", "deb"],
+      "icon": "assets/icon.png",
+      "category": "Development"
+    },
+    "nsis": {
+      "oneClick": false,
+      "perMachine": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true
+    },
+    "publish": {
+      "provider": "github",
+      "owner": "HeyItsChloe",
+      "repo": "agent_iOS"
     }
   }
 }
