@@ -212,11 +212,14 @@ function LLMSettingsPanel() {
 
   const providerOrder = ['openhands', 'anthropic', 'openai', 'other'];
   const providerLabels: Record<string, string> = {
-    openhands: '── OpenHands Cloud ──',
-    anthropic: '── Anthropic (Direct) ──',
-    openai: '── OpenAI (Direct) ──',
+    openhands: '── OpenHands Cloud (uses your account LLM) ──',
+    anthropic: '── Anthropic (requires your API key) ──',
+    openai: '── OpenAI (requires your API key) ──',
     other: '── Other ──',
   };
+
+  // Check if using OpenHands Cloud
+  const isOpenHandsCloud = provider === 'openhands';
 
   const handleModelChange = (newModel: string) => {
     setModel(newModel);
@@ -382,6 +385,21 @@ function LLMSettingsPanel() {
           </p>
         )}
       </div>
+
+      {/* OpenHands Cloud explanation */}
+      {isOpenHandsCloud && (
+        <div className="p-3 rounded-xl bg-blue-500/10 border border-blue-500/20">
+          <div className="flex items-start gap-2">
+            <Info size={16} className="text-blue-500 mt-0.5 flex-shrink-0" />
+            <div className="text-sm text-blue-600">
+              <strong>OpenHands Cloud Mode:</strong> Runs on OpenHands infrastructure using 
+              the LLM configured in your OpenHands account settings at{' '}
+              <a href="https://app.all-hands.dev" target="_blank" rel="noopener noreferrer" 
+                 className="underline">app.all-hands.dev</a>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Dynamic API Key field */}
       <div>

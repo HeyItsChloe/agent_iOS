@@ -138,40 +138,19 @@ def get_available_models() -> list[dict[str, str]]:
         List of model configurations with id, name, provider, and optional base_url.
         Models are ordered with OpenHands first (recommended), then direct providers.
     
-    Note: OpenHands Cloud models use a special "oh:" prefix to distinguish them
-    from direct provider models. The base_url points to OpenHands LiteLLM proxy.
+    Note: OpenHands Cloud models use a special "oh:" prefix. These run on OpenHands
+    Cloud infrastructure and use the LLM configured in your OpenHands account.
+    Direct models run locally and require your own provider API key.
     """
     return [
-        # OpenHands Cloud LiteLLM Proxy (use OpenHands API key)
-        # These route through OpenHands' managed LLM proxy
+        # OpenHands Cloud (use OpenHands API key)
+        # These run on OpenHands Cloud and use your account's LLM settings
         # The "oh:" prefix indicates OpenHands Cloud routing
         {
-            "id": "oh:anthropic/claude-sonnet-4-5-20250929",
-            "name": "Claude Sonnet 4.5 (OpenHands)",
+            "id": "oh:cloud",
+            "name": "OpenHands Cloud (Your Account LLM)",
             "provider": PROVIDER_OPENHANDS,
-            "base_url": f"{OPENHANDS_BASE_URL}/api/litellm",
-            "description": "Most capable model via OpenHands Cloud",
-        },
-        {
-            "id": "oh:anthropic/claude-haiku-3-5-20241022",
-            "name": "Claude Haiku 3.5 (OpenHands)",
-            "provider": PROVIDER_OPENHANDS,
-            "base_url": f"{OPENHANDS_BASE_URL}/api/litellm",
-            "description": "Fast and efficient via OpenHands Cloud",
-        },
-        {
-            "id": "oh:openai/gpt-4o",
-            "name": "GPT-4o (OpenHands)",
-            "provider": PROVIDER_OPENHANDS,
-            "base_url": f"{OPENHANDS_BASE_URL}/api/litellm",
-            "description": "GPT-4o via OpenHands Cloud",
-        },
-        {
-            "id": "oh:openai/gpt-4o-mini",
-            "name": "GPT-4o Mini (OpenHands)",
-            "provider": PROVIDER_OPENHANDS,
-            "base_url": f"{OPENHANDS_BASE_URL}/api/litellm",
-            "description": "Fast model via OpenHands Cloud",
+            "description": "Uses LLM from your OpenHands Cloud account settings",
         },
         # Direct Anthropic API (use Anthropic API key)
         {

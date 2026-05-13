@@ -25,8 +25,9 @@ class Settings(BaseSettings):
     """Application settings loaded from environment variables."""
     
     # LLM Configuration
-    # Use "oh:" prefix for OpenHands Cloud models, or direct provider prefix for direct access
-    llm_model: str = "oh:anthropic/claude-sonnet-4-5-20250929"
+    # Use "oh:cloud" for OpenHands Cloud (uses your account LLM settings)
+    # Or use direct provider prefix (anthropic/*, openai/*) with your own API key
+    llm_model: str = "oh:cloud"
     llm_base_url: Optional[str] = None
     
     # Provider-specific API keys

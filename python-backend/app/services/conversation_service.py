@@ -23,13 +23,18 @@ from app.models.events import (
 # Try to import SDK components
 try:
     from openhands.sdk import Conversation as SDKConversation
+    from openhands.workspace import OpenHandsCloudWorkspace
     from app.sdk.visualizer import GUIVisualizer
-    from app.sdk.llm_factory import create_llm
+    from app.sdk.llm_factory import create_llm, get_provider_from_model
     from app.sdk.agent_factory import create_sdk_agent, register_builtin_agents
+    from app.config import PROVIDER_OPENHANDS, OPENHANDS_BASE_URL
     SDK_AVAILABLE = True
+    CLOUD_WORKSPACE_AVAILABLE = True
 except ImportError:
     SDK_AVAILABLE = False
+    CLOUD_WORKSPACE_AVAILABLE = False
     SDKConversation = None
+    OpenHandsCloudWorkspace = None
     GUIVisualizer = None
 
 
@@ -263,20 +268,21 @@ class ConversationService:
         user_content: str,
         mention_agent_id: Optional[str],
     ) -> Optional[Message]:
-        """Run the SDK conversation and return the response."""
+        """Run the SDK conversation and return the response.
+        
+        Routes to either:
+        - OpenHands Cloud path (oh:* models) - uses OpenHandsCloudWorkspace
+        - Local SDK path (anthropic/*, openai/*) - uses local workspace with direct API key
+        """
         from app.services.agent_manager import AgentManager
         from app.services.skill_manager import SkillManager
         
         agent_manager = AgentManager()
         skill_manager = SkillManager()
         
-        # Create LLM
-        llm = create_llm(usage_id=f"conv-{conversation.id}")
-        if not llm:
-            return await self._generate_fallback_response(
-                conversation, user_content, mention_agent_id,
-                "LLM not configured. Please set LLM_API_KEY environment variable."
-            )
+        # Determine which path to use based on model provider
+        provider = get_provider_from_model(settings.llm_model)
+        use_cloud = provider == PROVIDER_OPENHANDS and CLOUD_WORKSPACE_AVAILABLE
         
         # Get agent to use
         agent_id = mention_agent_id or (conversation.agent_ids[0] if conversation.agent_ids else None)
@@ -302,11 +308,127 @@ class ConversationService:
         from app.models.agent import Agent as AgentModel
         agent_model = AgentModel(**agent_data)
         
+        if use_cloud:
+            return await self._run_cloud_conversation(
+                conversation, user_content, agent_id, agent_model, skill_models
+            )
+        else:
+            return await self._run_local_conversation(
+                conversation, user_content, agent_id, agent_model, skill_models
+            )
+    
+    async def _run_cloud_conversation(
+        self,
+        conversation: Conversation,
+        user_content: str,
+        agent_id: str,
+        agent_model: "AgentModel",
+        skill_models: list,
+    ) -> Optional[Message]:
+        """Run conversation via OpenHands Cloud (for oh:* models)."""
+        from app.models.agent import Agent as AgentModel
+        
+        # Check for OpenHands API key
+        if not settings.openhands_api_key:
+            return await self._generate_fallback_response(
+                conversation, user_content, agent_id,
+                "OpenHands API key not configured. Please set it in Settings."
+            )
+        
+        api_key = settings.openhands_api_key.get_secret_value()
+        
+        # Create visualizer with event callback
+        visualizer = GUIVisualizer(
+            name=agent_model.name,
+            conversation_id=conversation.id,
+            agent_id=agent_id,
+            agent_color=agent_model.color,
+        )
+        
+        async def on_event(event_data: dict):
+            await self._broadcast_event(conversation.id, event_data)
+        
+        visualizer.set_event_callback(on_event)
+        if self._loop:
+            visualizer.set_event_loop(self._loop)
+        
+        try:
+            # Use OpenHandsCloudWorkspace with context manager
+            with OpenHandsCloudWorkspace(
+                cloud_api_url=OPENHANDS_BASE_URL,
+                cloud_api_key=api_key,
+            ) as workspace:
+                # Get LLM from user's OpenHands Cloud account
+                llm = workspace.get_llm()
+                print(f"[Cloud] Got LLM from OpenHands Cloud: {llm.model}")
+                
+                # Create SDK agent with cloud LLM
+                sdk_agent = create_sdk_agent(llm, agent_model, skill_models)
+                if not sdk_agent:
+                    return await self._generate_fallback_response(
+                        conversation, user_content, agent_id,
+                        "Failed to create SDK agent."
+                    )
+                
+                # Create SDK conversation with cloud workspace
+                sdk_conv = SDKConversation(
+                    agent=sdk_agent,
+                    workspace=workspace,
+                    visualizer=visualizer,
+                )
+                
+                # Store SDK conversation
+                self._sdk_conversations[conversation.id] = sdk_conv
+                
+                # Send message and run
+                sdk_conv.send_message(user_content)
+                
+                # Run in thread pool to avoid blocking
+                loop = asyncio.get_event_loop()
+                await loop.run_in_executor(None, sdk_conv.run)
+                
+                return Message(
+                    id=str(uuid4()),
+                    conversation_id=conversation.id,
+                    content="Response sent via WebSocket stream.",
+                    sender=MessageSender.AGENT,
+                    agent_id=agent_id,
+                    agent_name=agent_model.name,
+                    agent_color=agent_model.color,
+                    status=MessageStatus.SENT,
+                )
+                
+        except Exception as e:
+            print(f"[Cloud] SDK conversation error: {e}")
+            return await self._generate_fallback_response(
+                conversation, user_content, agent_id,
+                f"Error running conversation: {str(e)}"
+            )
+    
+    async def _run_local_conversation(
+        self,
+        conversation: Conversation,
+        user_content: str,
+        agent_id: str,
+        agent_model: "AgentModel",
+        skill_models: list,
+    ) -> Optional[Message]:
+        """Run conversation locally (for anthropic/*, openai/* models)."""
+        from app.models.agent import Agent as AgentModel
+        
+        # Create LLM with direct API key
+        llm = create_llm(usage_id=f"conv-{conversation.id}")
+        if not llm:
+            return await self._generate_fallback_response(
+                conversation, user_content, agent_id,
+                "LLM not configured. Please set your API key in Settings."
+            )
+        
         # Create SDK agent
         sdk_agent = create_sdk_agent(llm, agent_model, skill_models)
         if not sdk_agent:
             return await self._generate_fallback_response(
-                conversation, user_content, mention_agent_id,
+                conversation, user_content, agent_id,
                 "Failed to create SDK agent."
             )
         
@@ -318,7 +440,6 @@ class ConversationService:
             agent_color=agent_model.color,
         )
         
-        # Set up event callback
         async def on_event(event_data: dict):
             await self._broadcast_event(conversation.id, event_data)
         
@@ -327,7 +448,7 @@ class ConversationService:
             visualizer.set_event_loop(self._loop)
         
         try:
-            # Create SDK conversation
+            # Create SDK conversation with local workspace
             sdk_conv = SDKConversation(
                 agent=sdk_agent,
                 workspace=str(settings.default_workspace),
@@ -344,9 +465,6 @@ class ConversationService:
             loop = asyncio.get_event_loop()
             await loop.run_in_executor(None, sdk_conv.run)
             
-            # Get the last agent response from SDK conversation
-            # The visualizer will have emitted events, but we also want to return
-            # the message for the API response
             return Message(
                 id=str(uuid4()),
                 conversation_id=conversation.id,
@@ -359,9 +477,9 @@ class ConversationService:
             )
             
         except Exception as e:
-            print(f"SDK conversation error: {e}")
+            print(f"[Local] SDK conversation error: {e}")
             return await self._generate_fallback_response(
-                conversation, user_content, mention_agent_id,
+                conversation, user_content, agent_id,
                 f"Error running conversation: {str(e)}"
             )
     
