@@ -2,6 +2,7 @@
 
 from typing import Optional
 
+import httpx
 from pydantic import SecretStr
 
 from app.config import (
@@ -18,6 +19,60 @@ try:
 except ImportError:
     SDK_AVAILABLE = False
     LLM = None
+
+
+def get_llm_from_openhands_cloud(api_key: str) -> Optional["LLM"]:
+    """Get LLM configuration from OpenHands Cloud account.
+    
+    Calls GET /api/v1/users/me?expose_secrets=true to fetch the user's
+    LLM configuration from their OpenHands Cloud account.
+    
+    Args:
+        api_key: OpenHands Cloud API key
+    
+    Returns:
+        Configured LLM instance, or None if failed
+    """
+    if not SDK_AVAILABLE:
+        return None
+    
+    try:
+        # Call OpenHands Cloud API to get user's LLM settings
+        response = httpx.get(
+            f"{OPENHANDS_BASE_URL}/api/v1/users/me",
+            params={"expose_secrets": "true"},
+            headers={"Authorization": f"Bearer {api_key}"},
+            timeout=30.0,
+        )
+        
+        if response.status_code != 200:
+            print(f"[OpenHands Cloud] Failed to get user settings: {response.status_code}")
+            print(f"[OpenHands Cloud] Response: {response.text[:500]}")
+            return None
+        
+        data = response.json()
+        
+        # Extract LLM settings from response
+        llm_model = data.get("settings", {}).get("llm_model")
+        llm_api_key = data.get("settings", {}).get("llm_api_key")
+        llm_base_url = data.get("settings", {}).get("llm_base_url")
+        
+        if not llm_model or not llm_api_key:
+            print(f"[OpenHands Cloud] No LLM configured in your account. Configure at {OPENHANDS_BASE_URL}")
+            print(f"[OpenHands Cloud] Available settings: {list(data.get('settings', {}).keys())}")
+            return None
+        
+        print(f"[OpenHands Cloud] Using LLM from your account: {llm_model}")
+        
+        return LLM(
+            model=llm_model,
+            api_key=SecretStr(llm_api_key),
+            base_url=llm_base_url if llm_base_url else None,
+        )
+        
+    except Exception as e:
+        print(f"[OpenHands Cloud] Error fetching LLM config: {e}")
+        return None
 
 
 def get_provider_from_model(model: str) -> str:
