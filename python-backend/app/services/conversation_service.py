@@ -1,28 +1,58 @@
-"""Conversation management service."""
+"""Conversation management service with OpenHands SDK integration."""
 
+import asyncio
+import json
 from datetime import datetime
+from pathlib import Path
 from typing import Any, Optional
 from uuid import uuid4
 
 from fastapi import WebSocket
 
+from app.config import settings
 from app.models.conversation import Conversation, ConversationType, ConversationResponse
-from app.models.message import Message, MessageSender, MessageStatus
+from app.models.message import Message, MessageSender, MessageStatus, SubAgentResult
 from app.models.events import (
     MessageEvent,
     TypingEvent,
     ErrorEvent,
     EventType,
+    AgentStateEvent,
 )
+
+# Try to import SDK components
+try:
+    from openhands.sdk import Conversation as SDKConversation
+    from app.sdk.visualizer import GUIVisualizer
+    from app.sdk.llm_factory import create_llm
+    from app.sdk.agent_factory import create_sdk_agent, register_builtin_agents
+    SDK_AVAILABLE = True
+except ImportError:
+    SDK_AVAILABLE = False
+    SDKConversation = None
+    GUIVisualizer = None
 
 
 class ConversationService:
     """Service for managing conversations with OpenHands SDK integration."""
     
     def __init__(self):
-        # In-memory storage (replace with database in production)
+        # In-memory storage
         self._conversations: dict[str, Conversation] = {}
         self._websockets: dict[str, list[WebSocket]] = {}
+        
+        # SDK conversation instances
+        self._sdk_conversations: dict[str, "SDKConversation"] = {}
+        
+        # Event loop for async operations
+        self._loop: Optional[asyncio.AbstractEventLoop] = None
+        
+        # Initialize SDK if available
+        if SDK_AVAILABLE:
+            register_builtin_agents()
+        
+        # Load persisted conversations
+        self._load_persisted_conversations()
     
     def list_conversations(self) -> list[dict[str, Any]]:
         """List all conversations."""
@@ -227,15 +257,175 @@ class ConversationService:
         )
         await websocket.send_json(error.model_dump())
     
+    async def _run_sdk_conversation(
+        self,
+        conversation: Conversation,
+        user_content: str,
+        mention_agent_id: Optional[str],
+    ) -> Optional[Message]:
+        """Run the SDK conversation and return the response."""
+        from app.services.agent_manager import AgentManager
+        from app.services.skill_manager import SkillManager
+        
+        agent_manager = AgentManager()
+        skill_manager = SkillManager()
+        
+        # Create LLM
+        llm = create_llm(usage_id=f"conv-{conversation.id}")
+        if not llm:
+            return await self._generate_fallback_response(
+                conversation, user_content, mention_agent_id,
+                "LLM not configured. Please set LLM_API_KEY environment variable."
+            )
+        
+        # Get agent to use
+        agent_id = mention_agent_id or (conversation.agent_ids[0] if conversation.agent_ids else None)
+        if not agent_id:
+            return None
+        
+        agent_data = agent_manager.get_agent(agent_id)
+        if not agent_data:
+            return await self._generate_fallback_response(
+                conversation, user_content, mention_agent_id,
+                f"Agent '{agent_id}' not found."
+            )
+        
+        # Get skills
+        skill_models = []
+        for skill_id in conversation.skill_ids:
+            skill = skill_manager.get_skill(skill_id)
+            if skill:
+                from app.models.skill import Skill
+                skill_models.append(Skill(**skill))
+        
+        # Create agent model
+        from app.models.agent import Agent as AgentModel
+        agent_model = AgentModel(**agent_data)
+        
+        # Create SDK agent
+        sdk_agent = create_sdk_agent(llm, agent_model, skill_models)
+        if not sdk_agent:
+            return await self._generate_fallback_response(
+                conversation, user_content, mention_agent_id,
+                "Failed to create SDK agent."
+            )
+        
+        # Create visualizer with event callback
+        visualizer = GUIVisualizer(
+            name=agent_model.name,
+            conversation_id=conversation.id,
+            agent_id=agent_id,
+            agent_color=agent_model.color,
+        )
+        
+        # Set up event callback
+        async def on_event(event_data: dict):
+            await self._broadcast_event(conversation.id, event_data)
+        
+        visualizer.set_event_callback(on_event)
+        if self._loop:
+            visualizer.set_event_loop(self._loop)
+        
+        try:
+            # Create SDK conversation
+            sdk_conv = SDKConversation(
+                agent=sdk_agent,
+                workspace=str(settings.default_workspace),
+                visualizer=visualizer,
+            )
+            
+            # Store SDK conversation
+            self._sdk_conversations[conversation.id] = sdk_conv
+            
+            # Send message and run
+            sdk_conv.send_message(user_content)
+            
+            # Run in thread pool to avoid blocking
+            loop = asyncio.get_event_loop()
+            await loop.run_in_executor(None, sdk_conv.run)
+            
+            # Get the last agent response from SDK conversation
+            # The visualizer will have emitted events, but we also want to return
+            # the message for the API response
+            return Message(
+                id=str(uuid4()),
+                conversation_id=conversation.id,
+                content="Response sent via WebSocket stream.",
+                sender=MessageSender.AGENT,
+                agent_id=agent_id,
+                agent_name=agent_model.name,
+                agent_color=agent_model.color,
+                status=MessageStatus.SENT,
+            )
+            
+        except Exception as e:
+            print(f"SDK conversation error: {e}")
+            return await self._generate_fallback_response(
+                conversation, user_content, mention_agent_id,
+                f"Error running conversation: {str(e)}"
+            )
+    
+    async def _run_group_chat(
+        self,
+        conversation: Conversation,
+        user_content: str,
+    ) -> list[Message]:
+        """Run group chat with multiple agents responding in parallel."""
+        from app.services.agent_manager import AgentManager
+        
+        agent_manager = AgentManager()
+        
+        # Create tasks for each agent
+        tasks = []
+        for agent_id in conversation.agent_ids:
+            task = self._run_sdk_conversation(
+                conversation,
+                user_content,
+                mention_agent_id=agent_id,
+            )
+            tasks.append(task)
+        
+        # Run all agents in parallel
+        responses = await asyncio.gather(*tasks, return_exceptions=True)
+        
+        # Filter successful responses
+        messages = []
+        for response in responses:
+            if isinstance(response, Message):
+                messages.append(response)
+            elif isinstance(response, Exception):
+                print(f"Group chat agent error: {response}")
+        
+        return messages
+    
+    async def _generate_fallback_response(
+        self,
+        conversation: Conversation,
+        user_content: str,
+        mention_agent_id: Optional[str],
+        error_message: str,
+    ) -> Message:
+        """Generate a fallback response when SDK is not available."""
+        agent_id = mention_agent_id or (conversation.agent_ids[0] if conversation.agent_ids else "unknown")
+        
+        return Message(
+            id=str(uuid4()),
+            conversation_id=conversation.id,
+            content=f"⚠️ {error_message}\n\nYour message: {user_content[:100]}...",
+            sender=MessageSender.AGENT,
+            agent_id=agent_id,
+            agent_name="System",
+            agent_color="#FF3B30",
+            status=MessageStatus.ERROR,
+        )
+    
     async def _generate_mock_response(
         self,
         conversation: Conversation,
         user_content: str,
         mention_agent_id: Optional[str],
     ) -> Optional[Message]:
-        """Generate a mock response (replace with SDK integration)."""
-        import asyncio
-        
+        """Generate a mock response when SDK is not available."""
         # Simulate processing time
         await asyncio.sleep(0.5)
         
@@ -244,13 +434,18 @@ class ConversationService:
         if not agent_id:
             return None
         
+        # Check if SDK is available
+        if SDK_AVAILABLE and settings.has_llm_api_key:
+            return await self._run_sdk_conversation(conversation, user_content, mention_agent_id)
+        
         return Message(
             id=str(uuid4()),
             conversation_id=conversation.id,
-            content=f"This is a mock response to: '{user_content[:50]}...' [SDK integration pending]",
+            content=f"👋 Hi! I received your message: \"{user_content[:100]}...\"\n\n"
+                    f"⚠️ SDK not configured. Set LLM_API_KEY to enable AI responses.",
             sender=MessageSender.AGENT,
             agent_id=agent_id,
-            agent_name=f"Agent",
+            agent_name="Agent",
             agent_color="#007AFF",
             status=MessageStatus.SENT,
         )
@@ -270,3 +465,76 @@ class ConversationService:
             "created_at": conversation.created_at.isoformat(),
             "updated_at": conversation.updated_at.isoformat(),
         }
+    
+    # ==================== Persistence Methods ====================
+    
+    def _load_persisted_conversations(self):
+        """Load conversations from disk."""
+        try:
+            for file_path in settings.conversations_dir.glob("*.json"):
+                try:
+                    with open(file_path, "r") as f:
+                        data = json.load(f)
+                    
+                    # Parse messages
+                    messages = []
+                    for msg_data in data.get("messages", []):
+                        msg_data["timestamp"] = datetime.fromisoformat(msg_data["timestamp"])
+                        messages.append(Message(**msg_data))
+                    
+                    # Create conversation
+                    conv = Conversation(
+                        id=data["id"],
+                        title=data.get("title"),
+                        type=ConversationType(data["type"]),
+                        agent_ids=data.get("agent_ids", []),
+                        skill_ids=data.get("skill_ids", []),
+                        messages=messages,
+                        created_at=datetime.fromisoformat(data["created_at"]),
+                        updated_at=datetime.fromisoformat(data["updated_at"]),
+                        is_archived=data.get("is_archived", False),
+                    )
+                    
+                    self._conversations[conv.id] = conv
+                except Exception as e:
+                    print(f"Failed to load conversation from {file_path}: {e}")
+        except Exception as e:
+            print(f"Failed to load conversations: {e}")
+    
+    def _persist_conversation(self, conversation: Conversation):
+        """Save a conversation to disk."""
+        try:
+            file_path = settings.conversations_dir / f"{conversation.id}.json"
+            
+            # Convert to dict
+            data = {
+                "id": conversation.id,
+                "title": conversation.title,
+                "type": conversation.type.value if hasattr(conversation.type, 'value') else conversation.type,
+                "agent_ids": conversation.agent_ids,
+                "skill_ids": conversation.skill_ids,
+                "messages": [
+                    {
+                        **msg.model_dump(),
+                        "timestamp": msg.timestamp.isoformat(),
+                    }
+                    for msg in conversation.messages
+                ],
+                "created_at": conversation.created_at.isoformat(),
+                "updated_at": conversation.updated_at.isoformat(),
+                "is_archived": conversation.is_archived,
+            }
+            
+            with open(file_path, "w") as f:
+                json.dump(data, f, indent=2, default=str)
+        except Exception as e:
+            print(f"Failed to persist conversation {conversation.id}: {e}")
+    
+    def _delete_persisted_conversation(self, conversation_id: str):
+        """Delete a persisted conversation."""
+        try:
+            file_path = settings.conversations_dir / f"{conversation_id}.json"
+            if file_path.exists():
+                file_path.unlink()
+        except Exception as e:
+            print(f"Failed to delete persisted conversation {conversation_id}: {e}")

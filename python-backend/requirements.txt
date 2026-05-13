@@ -3,14 +3,15 @@ fastapi>=0.109.0
 uvicorn[standard]>=0.27.0
 websockets>=12.0
 pydantic>=2.5.0
+pydantic-settings>=2.0.0
 
-# OpenHands SDK
-openhands-sdk>=0.1.0
-openhands-tools>=0.1.0
+# OpenHands SDK (optional - app works without it in mock mode)
+# Install separately if you have access:
+# pip install openhands-sdk openhands-tools
 
 # Async support
 asyncio-throttle>=1.0.0
+aiofiles>=23.0.0
 
 # Utilities
 python-dotenv>=1.0.0
-uuid>=1.30
