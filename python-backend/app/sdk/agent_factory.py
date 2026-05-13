@@ -91,12 +91,16 @@ def get_skills_for_agent(skill_models: list[SkillModel]) -> list["Skill"]:
     
     skills = []
     for skill_model in skill_models:
-        skill = Skill(
-            name=skill_model.id,
-            content=skill_model.content,
-            trigger=skill_model.triggers if skill_model.triggers else None,
-        )
-        skills.append(skill)
+        # Create skill without triggers - triggers are for auto-loading,
+        # but we're explicitly loading skills for the conversation
+        try:
+            skill = Skill(
+                name=skill_model.id,
+                content=skill_model.content,
+            )
+            skills.append(skill)
+        except Exception as e:
+            print(f"[SDK] Failed to create skill {skill_model.id}: {e}")
     
     return skills
 
