@@ -176,21 +176,20 @@ class OpenHandsCloudClient:
         # Get events and extract assistant response
         events = self.get_events(conv_id)
         
-        # Find the last assistant message
+        # Find the last agent message
         assistant_response = ""
         for event in reversed(events):
-            if event.get("source") == "assistant" and event.get("kind") == "MessageEvent":
-                msg = event.get("message", {})
-                if isinstance(msg, dict):
-                    content = msg.get("content", [])
+            if event.get("source") == "agent" and event.get("kind") == "MessageEvent":
+                # Check llm_message structure
+                llm_msg = event.get("llm_message", {})
+                if llm_msg:
+                    content = llm_msg.get("content", [])
                     for c in content:
                         if isinstance(c, dict) and c.get("type") == "text":
                             assistant_response = c.get("text", "")
                             break
-                elif isinstance(msg, str):
-                    assistant_response = msg
-                if assistant_response:
-                    break
+                    if assistant_response:
+                        break
         
         return conv_id, assistant_response
 
