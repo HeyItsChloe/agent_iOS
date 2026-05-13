@@ -21,58 +21,181 @@ except ImportError:
     LLM = None
 
 
-def get_llm_from_openhands_cloud(api_key: str) -> Optional["LLM"]:
-    """Get LLM configuration from OpenHands Cloud account.
+class OpenHandsCloudClient:
+    """Client for OpenHands Cloud conversation API.
     
-    Calls GET /api/v1/users/me?expose_secrets=true to fetch the user's
-    LLM configuration from their OpenHands Cloud account.
-    
-    Args:
-        api_key: OpenHands Cloud API key
-    
-    Returns:
-        Configured LLM instance, or None if failed
+    Uses the Cloud API to run conversations on OpenHands infrastructure,
+    which has access to your account's LLM configuration.
     """
-    if not SDK_AVAILABLE:
-        return None
     
-    try:
-        # Call OpenHands Cloud API to get user's LLM settings
+    def __init__(self, api_key: str, base_url: str = OPENHANDS_BASE_URL):
+        self.api_key = api_key
+        self.base_url = base_url
+        self.headers = {
+            "Authorization": f"Bearer {api_key}",
+            "Content-Type": "application/json",
+        }
+    
+    def start_conversation(self, message: str) -> dict:
+        """Start a new conversation on OpenHands Cloud.
+        
+        Args:
+            message: The initial message/prompt
+        
+        Returns:
+            Start task response with id and possibly app_conversation_id
+        """
+        response = httpx.post(
+            f"{self.base_url}/api/v1/app-conversations",
+            headers=self.headers,
+            json={
+                "initial_message": {
+                    "content": [{"type": "text", "text": message}]
+                }
+            },
+            timeout=60.0,
+        )
+        
+        if response.status_code not in (200, 201):
+            raise Exception(f"Failed to start conversation: {response.status_code} - {response.text}")
+        
+        return response.json()
+    
+    def get_start_task(self, start_task_id: str) -> dict:
+        """Poll start task status to get app_conversation_id."""
         response = httpx.get(
-            f"{OPENHANDS_BASE_URL}/api/v1/users/me",
-            params={"expose_secrets": "true"},
-            headers={"Authorization": f"Bearer {api_key}"},
+            f"{self.base_url}/api/v1/app-conversations/start-tasks",
+            params={"ids": start_task_id},
+            headers=self.headers,
             timeout=30.0,
         )
         
         if response.status_code != 200:
-            print(f"[OpenHands Cloud] Failed to get user settings: {response.status_code}")
-            print(f"[OpenHands Cloud] Response: {response.text[:500]}")
-            return None
+            raise Exception(f"Failed to get start task: {response.status_code}")
         
         data = response.json()
-        
-        # Extract LLM settings from response
-        llm_model = data.get("settings", {}).get("llm_model")
-        llm_api_key = data.get("settings", {}).get("llm_api_key")
-        llm_base_url = data.get("settings", {}).get("llm_base_url")
-        
-        if not llm_model or not llm_api_key:
-            print(f"[OpenHands Cloud] No LLM configured in your account. Configure at {OPENHANDS_BASE_URL}")
-            print(f"[OpenHands Cloud] Available settings: {list(data.get('settings', {}).keys())}")
-            return None
-        
-        print(f"[OpenHands Cloud] Using LLM from your account: {llm_model}")
-        
-        return LLM(
-            model=llm_model,
-            api_key=SecretStr(llm_api_key),
-            base_url=llm_base_url if llm_base_url else None,
+        items = data.get("items", [])
+        return items[0] if items else {}
+    
+    def get_conversation(self, conversation_id: str) -> dict:
+        """Get conversation status."""
+        response = httpx.get(
+            f"{self.base_url}/api/v1/app-conversations",
+            params={"ids": conversation_id},
+            headers=self.headers,
+            timeout=30.0,
         )
         
-    except Exception as e:
-        print(f"[OpenHands Cloud] Error fetching LLM config: {e}")
-        return None
+        if response.status_code != 200:
+            raise Exception(f"Failed to get conversation: {response.status_code}")
+        
+        data = response.json()
+        items = data.get("items", [])
+        return items[0] if items else {}
+    
+    def get_events(self, conversation_id: str, limit: int = 100) -> list:
+        """Get conversation events."""
+        response = httpx.get(
+            f"{self.base_url}/api/v1/conversation/{conversation_id}/events/search",
+            params={"limit": limit},
+            headers=self.headers,
+            timeout=30.0,
+        )
+        
+        if response.status_code != 200:
+            raise Exception(f"Failed to get events: {response.status_code}")
+        
+        return response.json().get("items", [])
+    
+    def wait_for_completion(self, conversation_id: str, timeout: float = 300.0) -> dict:
+        """Wait for conversation to complete."""
+        import time
+        start_time = time.time()
+        
+        while time.time() - start_time < timeout:
+            conv = self.get_conversation(conversation_id)
+            status = conv.get("execution_status", "")
+            
+            if status in ("finished", "error", "stopped"):
+                return conv
+            
+            time.sleep(2.0)
+        
+        raise Exception(f"Conversation timed out after {timeout}s")
+    
+    def run_message(self, message: str, timeout: float = 300.0) -> tuple[str, str]:
+        """Run a message and return the response.
+        
+        Args:
+            message: User message
+            timeout: Max time to wait for completion
+        
+        Returns:
+            Tuple of (conversation_id, assistant_response)
+        """
+        import time
+        
+        # Start conversation
+        start = self.start_conversation(message)
+        print(f"[OpenHands Cloud] Started conversation: {start}")
+        
+        # Get app_conversation_id
+        conv_id = start.get("app_conversation_id")
+        if not conv_id:
+            # Poll start task
+            start_task_id = start.get("id")
+            if not start_task_id:
+                raise Exception("No start_task_id in response")
+            
+            for _ in range(30):
+                task = self.get_start_task(start_task_id)
+                conv_id = task.get("app_conversation_id")
+                if conv_id:
+                    break
+                time.sleep(1.0)
+            
+            if not conv_id:
+                raise Exception("Failed to get conversation ID")
+        
+        print(f"[OpenHands Cloud] Conversation ID: {conv_id}")
+        print(f"[OpenHands Cloud] View at: {self.base_url}/conversations/{conv_id}")
+        
+        # Wait for completion
+        self.wait_for_completion(conv_id, timeout)
+        
+        # Get events and extract assistant response
+        events = self.get_events(conv_id)
+        
+        # Find the last assistant message
+        assistant_response = ""
+        for event in reversed(events):
+            if event.get("source") == "assistant" and event.get("kind") == "MessageEvent":
+                msg = event.get("message", {})
+                if isinstance(msg, dict):
+                    content = msg.get("content", [])
+                    for c in content:
+                        if isinstance(c, dict) and c.get("type") == "text":
+                            assistant_response = c.get("text", "")
+                            break
+                elif isinstance(msg, str):
+                    assistant_response = msg
+                if assistant_response:
+                    break
+        
+        return conv_id, assistant_response
+
+
+def verify_openhands_api_key(api_key: str) -> bool:
+    """Verify that an OpenHands API key is valid."""
+    try:
+        response = httpx.get(
+            f"{OPENHANDS_BASE_URL}/api/v1/users/me",
+            headers={"Authorization": f"Bearer {api_key}"},
+            timeout=10.0,
+        )
+        return response.status_code == 200
+    except Exception:
+        return False
 
 
 def get_provider_from_model(model: str) -> str:

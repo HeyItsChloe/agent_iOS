@@ -24,7 +24,7 @@ from app.models.events import (
 try:
     from openhands.sdk import Conversation as SDKConversation
     from app.sdk.visualizer import GUIVisualizer
-    from app.sdk.llm_factory import create_llm, get_provider_from_model, get_llm_from_openhands_cloud
+    from app.sdk.llm_factory import create_llm, get_provider_from_model, OpenHandsCloudClient
     from app.sdk.agent_factory import create_sdk_agent, register_builtin_agents
     from app.config import PROVIDER_OPENHANDS, OPENHANDS_BASE_URL
     SDK_AVAILABLE = True
@@ -33,6 +33,7 @@ except ImportError as e:
     SDK_AVAILABLE = False
     SDKConversation = None
     GUIVisualizer = None
+    OpenHandsCloudClient = None
 
 
 class ConversationService:
@@ -304,35 +305,108 @@ class ConversationService:
         from app.models.agent import Agent as AgentModel
         agent_model = AgentModel(**agent_data)
         
-        # Get LLM based on provider
+        # Route based on provider
         if provider == PROVIDER_OPENHANDS:
-            # Fetch LLM config from OpenHands Cloud account
-            if not settings.openhands_api_key:
-                return await self._generate_fallback_response(
-                    conversation, user_content, agent_id,
-                    "OpenHands API key not configured. Please set it in Settings."
-                )
-            
-            api_key = settings.openhands_api_key.get_secret_value()
-            llm = get_llm_from_openhands_cloud(api_key)
-            
-            if not llm:
-                return await self._generate_fallback_response(
-                    conversation, user_content, agent_id,
-                    "Failed to get LLM from OpenHands Cloud. Check your account settings at app.all-hands.dev"
-                )
+            # Use OpenHands Cloud API
+            return await self._run_openhands_cloud_conversation(
+                conversation, user_content, agent_id, agent_model
+            )
         else:
-            # Use direct provider API key
+            # Use local SDK with direct provider API key
             llm = create_llm(usage_id=f"conv-{conversation.id}")
             if not llm:
                 return await self._generate_fallback_response(
                     conversation, user_content, agent_id,
                     "LLM not configured. Please set your API key in Settings."
                 )
+            
+            return await self._run_conversation_with_llm(
+                conversation, user_content, agent_id, agent_model, skill_models, llm
+            )
+    
+    async def _run_openhands_cloud_conversation(
+        self,
+        conversation: Conversation,
+        user_content: str,
+        agent_id: str,
+        agent_model: "AgentModel",
+    ) -> Optional[Message]:
+        """Run conversation via OpenHands Cloud API.
         
-        return await self._run_conversation_with_llm(
-            conversation, user_content, agent_id, agent_model, skill_models, llm
+        This starts a conversation on OpenHands Cloud infrastructure,
+        which uses your account's LLM configuration.
+        """
+        if not settings.openhands_api_key:
+            return await self._generate_fallback_response(
+                conversation, user_content, agent_id,
+                "OpenHands API key not configured. Please set it in Settings."
+            )
+        
+        api_key = settings.openhands_api_key.get_secret_value()
+        
+        # Send typing indicator
+        typing_event = TypingEvent(
+            conversation_id=conversation.id,
+            agent_id=agent_id,
+            agent_name=agent_model.name,
+            is_typing=True,
         )
+        await self._broadcast_event(conversation.id, typing_event.model_dump(mode='json'))
+        
+        try:
+            # Run on OpenHands Cloud
+            client = OpenHandsCloudClient(api_key)
+            
+            loop = asyncio.get_event_loop()
+            cloud_conv_id, response_text = await loop.run_in_executor(
+                None, 
+                lambda: client.run_message(user_content, timeout=300.0)
+            )
+            
+            # Stop typing indicator
+            typing_event.is_typing = False
+            await self._broadcast_event(conversation.id, typing_event.model_dump(mode='json'))
+            
+            # Create response message
+            response_content = response_text if response_text else f"Conversation completed. View at: https://app.all-hands.dev/conversations/{cloud_conv_id}"
+            
+            response_message = Message(
+                id=str(uuid4()),
+                conversation_id=conversation.id,
+                content=response_content,
+                sender=MessageSender.AGENT,
+                agent_id=agent_id,
+                agent_name=agent_model.name,
+                agent_color=agent_model.color,
+                status=MessageStatus.SENT,
+                metadata={"cloud_conversation_id": cloud_conv_id},
+            )
+            
+            # Broadcast the response
+            msg_event = MessageEvent(
+                conversation_id=conversation.id,
+                message=response_message.model_dump(mode='json'),
+            )
+            await self._broadcast_event(conversation.id, msg_event.model_dump(mode='json'))
+            
+            return response_message
+            
+        except Exception as e:
+            print(f"[OpenHands Cloud] Error: {e}")
+            
+            # Stop typing indicator
+            typing_event = TypingEvent(
+                conversation_id=conversation.id,
+                agent_id=agent_id,
+                agent_name=agent_model.name,
+                is_typing=False,
+            )
+            await self._broadcast_event(conversation.id, typing_event.model_dump(mode='json'))
+            
+            return await self._generate_fallback_response(
+                conversation, user_content, agent_id,
+                f"OpenHands Cloud error: {str(e)}"
+            )
     
     async def _run_conversation_with_llm(
         self,
