@@ -258,7 +258,7 @@ docker run -p 8765:8765 ios-agent-messenger
 | Variable | Description | Default |
 |----------|-------------|---------|
 | `PORT` | Backend server port | `8765` |
-| `LLM_MODEL` | Default LLM model | `openhands/claude-sonnet-4-5-20250929` |
+| `LLM_MODEL` | Default LLM model | `oh:anthropic/claude-sonnet-4-5-20250929` |
 | `OPENHANDS_API_KEY` | OpenHands Cloud API key | - |
 | `ANTHROPIC_API_KEY` | Anthropic API key (for direct access) | - |
 | `OPENAI_API_KEY` | OpenAI API key (for direct access) | - |
@@ -270,19 +270,19 @@ The app supports multiple LLM providers. The model name prefix determines which 
 
 | Model Prefix | Provider | API Key Variable | Example Model |
 |--------------|----------|------------------|---------------|
-| `openhands/` | OpenHands Cloud | `OPENHANDS_API_KEY` | `openhands/claude-sonnet-4-5-20250929` |
+| `oh:` | OpenHands Cloud | `OPENHANDS_API_KEY` | `oh:anthropic/claude-sonnet-4-5-20250929` |
 | `anthropic/` | Anthropic (Direct) | `ANTHROPIC_API_KEY` | `anthropic/claude-sonnet-4-5-20250929` |
 | `openai/` | OpenAI (Direct) | `OPENAI_API_KEY` | `openai/gpt-4o` |
 
-**Recommended:** Use OpenHands Cloud models (`openhands/*`) with your OpenHands API key from [app.all-hands.dev](https://app.all-hands.dev). This provides the simplest setup and access to all supported models.
+**Recommended:** Use OpenHands Cloud models (`oh:*`) with your OpenHands API key from [app.all-hands.dev](https://app.all-hands.dev). This routes requests through OpenHands' LiteLLM proxy and provides access to all supported models.
 
-**Direct Provider Access:** If you prefer to use your own provider API keys, select models with `anthropic/` or `openai/` prefixes and configure the corresponding API key.
+**Direct Provider Access:** If you prefer to use your own provider API keys, select models without the `oh:` prefix (e.g., `anthropic/claude-sonnet-4-5-20250929`) and configure the corresponding API key.
 
 #### Example `.env` file
 
 ```bash
 # Option 1: OpenHands Cloud (recommended)
-LLM_MODEL=openhands/claude-sonnet-4-5-20250929
+LLM_MODEL=oh:anthropic/claude-sonnet-4-5-20250929
 OPENHANDS_API_KEY=your-openhands-api-key
 
 # Option 2: Direct Anthropic access

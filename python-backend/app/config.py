@@ -21,7 +21,8 @@ class Settings(BaseSettings):
     """Application settings loaded from environment variables."""
     
     # LLM Configuration
-    llm_model: str = "openhands/claude-sonnet-4-5-20250929"
+    # Use "oh:" prefix for OpenHands Cloud models, or direct provider prefix for direct access
+    llm_model: str = "oh:anthropic/claude-sonnet-4-5-20250929"
     llm_base_url: Optional[str] = None
     
     # Provider-specific API keys
@@ -63,8 +64,19 @@ class Settings(BaseSettings):
         self.skills_dir.mkdir(parents=True, exist_ok=True)
     
     def get_provider_from_model(self, model: Optional[str] = None) -> str:
-        """Extract provider from model string (e.g., 'openhands/claude-...' -> 'openhands')."""
+        """Extract provider from model string.
+        
+        Examples:
+            - 'oh:anthropic/claude-...' -> 'openhands' (OpenHands Cloud)
+            - 'anthropic/claude-...' -> 'anthropic' (Direct)
+            - 'openai/gpt-4o' -> 'openai' (Direct)
+        """
         model = model or self.llm_model
+        
+        # Check for OpenHands prefix
+        if model.startswith("oh:"):
+            return PROVIDER_OPENHANDS
+        
         if "/" in model:
             return model.split("/")[0].lower()
         return PROVIDER_OPENAI  # Default fallback
@@ -88,7 +100,8 @@ class Settings(BaseSettings):
         """Get the appropriate base URL for the current or specified model."""
         provider = self.get_provider_from_model(model)
         if provider == PROVIDER_OPENHANDS:
-            return self.openhands_base_url
+            # Use the LiteLLM proxy endpoint for OpenHands Cloud
+            return f"{self.openhands_base_url}/api/litellm"
         return self.llm_base_url
     
     def set_api_key_for_provider(self, provider: str, api_key: str) -> None:
