@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { MessageBubble } from './MessageBubble';
 import { ChatInput } from './ChatInput';
 import { TypingIndicator, MultiAgentTyping } from './TypingIndicator';
-import { useConversationStore } from '../../stores/conversationStore';
+import { useConversationStore, useActiveConversation } from '../../stores/conversationStore';
 import { useAgentStore } from '../../stores/agentStore';
 import { useConversationWebSocket } from '../../hooks/useConversationWebSocket';
 import type { Message } from '../../types/message';
@@ -13,8 +13,9 @@ export function ChatView() {
   const messagesContainerRef = useRef<HTMLDivElement>(null);
   const [autoScroll, setAutoScroll] = useState(true);
   
+  // Use the selector hook for proper reactivity
+  const activeConversation = useActiveConversation();
   const { 
-    activeConversation, 
     addMessage,
     updateMessage 
   } = useConversationStore();
