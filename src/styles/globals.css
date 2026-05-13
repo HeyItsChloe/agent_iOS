@@ -201,6 +201,33 @@
 }
 
 @layer utilities {
+  /* Theme-aware colors for new components */
+  .bg-ios-background { background-color: var(--bg-primary); }
+  .bg-ios-card { background-color: var(--bg-primary); }
+  .bg-ios-sidebar { background-color: var(--bg-secondary); }
+  .bg-ios-secondary { background-color: var(--ios-gray-5); }
+  .bg-ios-bubble-received { background-color: var(--bubble-agent); }
+  .border-ios-separator { border-color: var(--ios-gray-4); }
+  .text-ios-text { color: var(--text-primary); }
+  .text-ios-text-secondary { color: var(--text-tertiary); }
+  
+  .dark .bg-ios-background { background-color: var(--bg-primary); }
+  .dark .bg-ios-card { background-color: var(--bg-secondary); }
+  .dark .bg-ios-sidebar { background-color: var(--bg-secondary); }
+  .dark .bg-ios-secondary { background-color: var(--ios-gray-5); }
+  .dark .bg-ios-bubble-received { background-color: var(--bubble-agent); }
+  .dark .border-ios-separator { border-color: var(--ios-gray-4); }
+  .dark .text-ios-text { color: var(--text-primary); }
+  .dark .text-ios-text-secondary { color: var(--text-tertiary); }
+
+  /* iOS brand colors as utilities */
+  .bg-ios-blue { background-color: var(--ios-blue); }
+  .bg-ios-green { background-color: var(--ios-green); }
+  .bg-ios-red { background-color: var(--ios-red); }
+  .text-ios-blue { color: var(--ios-blue); }
+  .text-ios-green { color: var(--ios-green); }
+  .text-ios-red { color: var(--ios-red); }
+
   /* Gradient backgrounds for avatars */
   .gradient-blue {
     @apply bg-gradient-to-br from-blue-500 to-cyan-500;
@@ -234,6 +261,23 @@
   
   .titlebar-no-drag {
     -webkit-app-region: no-drag;
+  }
+
+  /* iOS shadows */
+  .shadow-ios {
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+  }
+
+  .shadow-ios-lg {
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+  }
+
+  /* Line clamp */
+  .line-clamp-2 {
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
   }
 }
 
@@ -286,4 +330,20 @@
   transform: translateY(20px);
   opacity: 0;
   transition: transform 200ms ease-in, opacity 150ms ease-in;
+}
+
+/* Modal animation for new Modal component */
+.animate-modal-in {
+  animation: modal-in 0.2s ease-out;
+}
+
+@keyframes modal-in {
+  from {
+    opacity: 0;
+    transform: scale(0.95) translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
 }
