@@ -1,5 +1,6 @@
 """Application configuration."""
 
+import json
 import os
 from pathlib import Path
 from typing import Optional
@@ -15,6 +16,9 @@ PROVIDER_OPENAI = "openai"
 
 # Default OpenHands Cloud base URL
 OPENHANDS_BASE_URL = "https://app.all-hands.dev"
+
+# Config file name for persisted settings
+CONFIG_FILE_NAME = "settings.json"
 
 
 class Settings(BaseSettings):
@@ -62,6 +66,75 @@ class Settings(BaseSettings):
         self.conversations_dir.mkdir(parents=True, exist_ok=True)
         self.agents_dir.mkdir(parents=True, exist_ok=True)
         self.skills_dir.mkdir(parents=True, exist_ok=True)
+        
+        # Load persisted settings from disk
+        self._load_persisted_settings()
+    
+    def _get_config_path(self) -> Path:
+        """Get path to the persisted settings file."""
+        return self.data_dir / CONFIG_FILE_NAME
+    
+    def _load_persisted_settings(self) -> None:
+        """Load settings from the persisted config file."""
+        config_path = self._get_config_path()
+        if not config_path.exists():
+            return
+        
+        try:
+            with open(config_path, "r") as f:
+                data = json.load(f)
+            
+            # Load model
+            if "llm_model" in data:
+                self.llm_model = data["llm_model"]
+            
+            if "llm_base_url" in data:
+                self.llm_base_url = data["llm_base_url"]
+            
+            # Load API keys (only if not already set via env vars)
+            if "openhands_api_key" in data and not self.openhands_api_key:
+                self.openhands_api_key = SecretStr(data["openhands_api_key"])
+            
+            if "anthropic_api_key" in data and not self.anthropic_api_key:
+                self.anthropic_api_key = SecretStr(data["anthropic_api_key"])
+            
+            if "openai_api_key" in data and not self.openai_api_key:
+                self.openai_api_key = SecretStr(data["openai_api_key"])
+            
+            print(f"[Config] Loaded settings from {config_path}")
+        except Exception as e:
+            print(f"[Config] Failed to load settings: {e}")
+    
+    def save_to_disk(self) -> None:
+        """Persist current settings to disk."""
+        config_path = self._get_config_path()
+        
+        data = {
+            "llm_model": self.llm_model,
+        }
+        
+        if self.llm_base_url:
+            data["llm_base_url"] = self.llm_base_url
+        
+        # Save API keys
+        if self.openhands_api_key:
+            data["openhands_api_key"] = self.openhands_api_key.get_secret_value()
+        
+        if self.anthropic_api_key:
+            data["anthropic_api_key"] = self.anthropic_api_key.get_secret_value()
+        
+        if self.openai_api_key:
+            data["openai_api_key"] = self.openai_api_key.get_secret_value()
+        
+        try:
+            with open(config_path, "w") as f:
+                json.dump(data, f, indent=2)
+            
+            # Set restrictive permissions (owner read/write only)
+            config_path.chmod(0o600)
+            print(f"[Config] Saved settings to {config_path}")
+        except Exception as e:
+            print(f"[Config] Failed to save settings: {e}")
     
     def get_provider_from_model(self, model: Optional[str] = None) -> str:
         """Extract provider from model string.

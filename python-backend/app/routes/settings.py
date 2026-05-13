@@ -94,11 +94,11 @@ async def update_llm_settings(request: LLMSettingsRequest):
     """Update LLM configuration.
     
     The API key is stored for the provider of the selected model.
-    For example, if model is "openhands/claude-sonnet-4-5-20250929",
+    For example, if model is "oh:anthropic/claude-sonnet-4-5-20250929",
     the API key is stored as the OpenHands API key.
     
-    Note: This updates the runtime settings. For persistence across restarts,
-    set environment variables or use a .env file.
+    Settings are persisted to ~/.agent_ios/settings.json and will
+    survive server restarts.
     """
     # Update model if provided
     if request.model:
@@ -114,6 +114,9 @@ async def update_llm_settings(request: LLMSettingsRequest):
     # Update base URL if provided (for custom endpoints)
     if request.base_url is not None:
         settings.llm_base_url = request.base_url if request.base_url else None
+    
+    # Persist settings to disk
+    settings.save_to_disk()
     
     return LLMSettingsResponse(
         model=settings.llm_model,
