@@ -5,20 +5,9 @@ from typing import Any
 
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect
 
-from app.services.conversation_service import ConversationService
+from app.services import conversation_service
 
 router = APIRouter(tags=["websocket"])
-
-# Singleton conversation service (in production, use dependency injection)
-_conversation_service = None
-
-
-def get_conversation_service() -> ConversationService:
-    """Get or create the conversation service singleton."""
-    global _conversation_service
-    if _conversation_service is None:
-        _conversation_service = ConversationService()
-    return _conversation_service
 
 
 @router.websocket("/conversations/{conversation_id}/stream")
@@ -39,10 +28,8 @@ async def conversation_stream(websocket: WebSocket, conversation_id: str):
     - error: An error occurred
     - agent_state: Agent state changed
     """
-    service = get_conversation_service()
-    
     # Verify conversation exists
-    conversation = service.get_conversation(conversation_id)
+    conversation = conversation_service.get_conversation(conversation_id)
     if not conversation:
         await websocket.close(code=4004, reason="Conversation not found")
         return
@@ -51,7 +38,7 @@ async def conversation_stream(websocket: WebSocket, conversation_id: str):
     await websocket.accept()
     
     # Register WebSocket with service
-    await service.register_websocket(conversation_id, websocket)
+    conversation_service.register_websocket(conversation_id, websocket)
     
     try:
         # Send initial conversation state
@@ -77,7 +64,7 @@ async def conversation_stream(websocket: WebSocket, conversation_id: str):
                     
                     if content.strip():
                         # Send message and get response
-                        await service.send_message(
+                        await conversation_service.send_message(
                             conversation_id=conversation_id,
                             content=content,
                             mention_agent_id=mention_agent_id,
@@ -89,7 +76,7 @@ async def conversation_stream(websocket: WebSocket, conversation_id: str):
                 
                 elif msg_type == "get_state":
                     # Return current conversation state
-                    conv = service.get_conversation(conversation_id)
+                    conv = conversation_service.get_conversation(conversation_id)
                     if conv:
                         await websocket.send_json({
                             "type": "state",
@@ -109,7 +96,7 @@ async def conversation_stream(websocket: WebSocket, conversation_id: str):
     
     finally:
         # Unregister WebSocket
-        await service.unregister_websocket(conversation_id, websocket)
+        conversation_service.unregister_websocket(conversation_id, websocket)
 
 
 @router.websocket("/events")

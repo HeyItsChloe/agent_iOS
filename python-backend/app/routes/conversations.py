@@ -6,7 +6,7 @@ from uuid import uuid4
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect, HTTPException
 from pydantic import BaseModel
 
-from app.services.conversation_service import ConversationService
+from app.services import conversation_service
 from app.models.conversation import (
     ConversationCreate,
     ConversationResponse,
@@ -14,9 +14,6 @@ from app.models.conversation import (
 from app.models.message import MessageCreate
 
 router = APIRouter()
-
-# In-memory conversation service (will be replaced with proper state management)
-conversation_service = ConversationService()
 
 
 class CreateConversationRequest(BaseModel):
