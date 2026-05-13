@@ -378,6 +378,7 @@ class ConversationService:
             await self._broadcast_event(
                 conversation.id,
                 TypingEvent(
+                    type=EventType.TYPING_STOPPED,
                     conversation_id=conversation.id,
                     agent_id=agent_id,
                     agent_name=agent_model.name,
@@ -401,20 +402,7 @@ class ConversationService:
                 metadata={"cloud_conversation_id": cloud_conv_id},
             )
             
-            # Broadcast the response using proper MessageEvent
-            await self._broadcast_event(
-                conversation.id,
-                MessageEvent(
-                    conversation_id=conversation.id,
-                    message_id=message_id,
-                    content=response_content,
-                    sender="agent",
-                    agent_id=agent_id,
-                    agent_name=agent_model.name,
-                    agent_color=agent_model.color,
-                ),
-            )
-            
+            # Don't broadcast here - handle_websocket_message already broadcasts the returned message
             return response_message
             
         except Exception as e:
@@ -426,6 +414,7 @@ class ConversationService:
             await self._broadcast_event(
                 conversation.id,
                 TypingEvent(
+                    type=EventType.TYPING_STOPPED,
                     conversation_id=conversation.id,
                     agent_id=agent_id,
                     agent_name=agent_model.name,

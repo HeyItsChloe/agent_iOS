@@ -157,7 +157,7 @@ export function useConversationWebSocket(
       const conversation = conversations.get(conversationId);
       if (conversation) {
         const pendingMessage = conversation.messages.find(
-          m => m.sender === 'user' && m.status === 'sending' && m.content === data.content
+          m => m.sender === 'user' && m.status === 'sending'
         );
         if (pendingMessage) {
           updateMessage(conversationId, pendingMessage.id, { status: 'sent' });
