@@ -552,6 +552,12 @@ class ConversationService:
         if not agent_id:
             return None
         
+        # Debug: Check SDK and API key status
+        print(f"[Debug] SDK_AVAILABLE: {SDK_AVAILABLE}")
+        print(f"[Debug] has_llm_api_key: {settings.has_llm_api_key}")
+        print(f"[Debug] openhands_api_key set: {settings.openhands_api_key is not None}")
+        print(f"[Debug] llm_model: {settings.llm_model}")
+        
         # Check if SDK is available
         if SDK_AVAILABLE and settings.has_llm_api_key:
             return await self._run_sdk_conversation(conversation, user_content, mention_agent_id)
