@@ -23,7 +23,7 @@ export function useConversationWebSocket(
   const [error, setError] = useState<string | null>(null);
   const [typingAgents, setTypingAgents] = useState<string[]>([]);
   
-  const { addMessage } = useConversationStore();
+  const { addMessage, updateMessage, conversations } = useConversationStore();
   const { agents } = useAgentStore();
   const agentsArray = Array.from(agents.values());
 
@@ -151,13 +151,28 @@ export function useConversationWebSocket(
   }) => {
     if (!conversationId) return;
 
+    // For user messages, just update the status of the optimistically added message
+    if (data.sender === 'user') {
+      // Find the pending message and update its status to 'sent'
+      const conversation = conversations.get(conversationId);
+      if (conversation) {
+        const pendingMessage = conversation.messages.find(
+          m => m.sender === 'user' && m.status === 'sending' && m.content === data.content
+        );
+        if (pendingMessage) {
+          updateMessage(conversationId, pendingMessage.id, { status: 'sent' });
+        }
+      }
+      return;
+    }
+
     const agent = data.agent_id ? agentsArray.find(a => a.id === data.agent_id) : null;
 
     const message: Message = {
       id: data.message_id || `msg-${Date.now()}`,
       conversationId: data.conversation_id || conversationId,
       content: data.content || '',
-      sender: data.sender === 'user' ? 'user' : 'agent',
+      sender: 'agent',
       agentId: data.agent_id,
       agentName: data.agent_name || agent?.name,
       agentColor: data.agent_color || agent?.color,
@@ -172,7 +187,7 @@ export function useConversationWebSocket(
     if (data.agent_id) {
       setTypingAgents(prev => prev.filter(id => id !== data.agent_id));
     }
-  }, [conversationId, addMessage, agentsArray]);
+  }, [conversationId, addMessage, updateMessage, conversations, agentsArray]);
 
   const sendMessage = useCallback((content: string, mentionAgentId?: string) => {
     if (!wsRef.current || wsRef.current.readyState !== WebSocket.OPEN) {
