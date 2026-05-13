@@ -3,6 +3,7 @@ import { Modal, ModalFooter } from './Modal';
 import { useAgentStore } from '../../stores/agentStore';
 import { useSkillStore } from '../../stores/skillStore';
 import { useConversationStore } from '../../stores/conversationStore';
+import { conversationsApi } from '../../api/client';
 import type { ConversationType } from '../../types/conversation';
 import { Check, Users, Sparkles, Bot } from 'lucide-react';
 import { cn } from '../../utils/cn';
@@ -18,6 +19,7 @@ export function NewChatModal({ onClose, onCreated }: NewChatModalProps) {
   const [selectedAgents, setSelectedAgents] = useState<string[]>([]);
   const [selectedSkills, setSelectedSkills] = useState<string[]>([]);
   const [title, setTitle] = useState('');
+  const [isCreating, setIsCreating] = useState(false);
   
   const { agents } = useAgentStore();
   const { skills } = useSkillStore();
@@ -46,25 +48,59 @@ export function NewChatModal({ onClose, onCreated }: NewChatModalProps) {
     );
   };
 
-  const handleCreate = () => {
-    if (selectedAgents.length === 0) return;
+  const handleCreate = async () => {
+    if (selectedAgents.length === 0 || isCreating) return;
 
-    const newConversation = {
-      id: `conv-${Date.now()}`,
-      type: chatType,
-      agentIds: selectedAgents,
-      skillIds: selectedSkills,
-      title: title || null,
-      messages: [],
-      createdAt: new Date(),
-      updatedAt: new Date(),
-      typingAgents: {},
-      isArchived: false,
-    };
+    setIsCreating(true);
+    
+    try {
+      // Call the backend API to create the conversation
+      const response = await conversationsApi.create({
+        type: chatType,
+        agent_ids: selectedAgents,
+        skill_ids: selectedSkills,
+        title: title || undefined,
+      });
+      
+      // Map API response to frontend format
+      const newConversation = {
+        id: response.id,
+        type: response.type as ConversationType,
+        agentIds: response.agent_ids,
+        skillIds: response.skill_ids,
+        title: response.title || null,
+        messages: [],
+        createdAt: new Date(response.created_at),
+        updatedAt: new Date(response.updated_at),
+        typingAgents: response.typing_agents || {},
+        isArchived: response.is_archived || false,
+      };
 
-    addConversation(newConversation);
-    setActiveConversation(newConversation.id);
-    onCreated(newConversation.id);
+      addConversation(newConversation);
+      setActiveConversation(newConversation.id);
+      onCreated(newConversation.id);
+    } catch (error) {
+      console.error('Failed to create conversation:', error);
+      // Still create locally as fallback
+      const fallbackConversation = {
+        id: `conv-${Date.now()}`,
+        type: chatType,
+        agentIds: selectedAgents,
+        skillIds: selectedSkills,
+        title: title || null,
+        messages: [],
+        createdAt: new Date(),
+        updatedAt: new Date(),
+        typingAgents: {},
+        isArchived: false,
+      };
+
+      addConversation(fallbackConversation);
+      setActiveConversation(fallbackConversation.id);
+      onCreated(fallbackConversation.id);
+    } finally {
+      setIsCreating(false);
+    }
   };
 
   const canProceed = () => {
@@ -204,15 +240,15 @@ export function NewChatModal({ onClose, onCreated }: NewChatModalProps) {
         </button>
         <button
           onClick={handleNext}
-          disabled={!canProceed()}
+          disabled={!canProceed() || isCreating}
           className={cn(
             'px-6 py-2 rounded-lg font-medium transition-colors',
-            canProceed()
+            canProceed() && !isCreating
               ? 'bg-ios-blue text-white hover:bg-blue-600'
               : 'bg-ios-secondary text-ios-text-secondary cursor-not-allowed'
           )}
         >
-          {step === 'skills' ? 'Start Chat' : 'Next'}
+          {isCreating ? 'Creating...' : step === 'skills' ? 'Start Chat' : 'Next'}
         </button>
       </ModalFooter>
     </Modal>
