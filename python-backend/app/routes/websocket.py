@@ -63,11 +63,12 @@ async def conversation_stream(websocket: WebSocket, conversation_id: str):
                     mention_agent_id = message_data.get("mention_agent_id")
                     
                     if content.strip():
-                        # Send message and get response
-                        await conversation_service.send_message(
+                        # Send message and broadcast response via WebSocket
+                        await conversation_service.handle_websocket_message(
                             conversation_id=conversation_id,
                             content=content,
                             mention_agent_id=mention_agent_id,
+                            websocket=websocket,
                         )
                 
                 elif msg_type == "ping":
