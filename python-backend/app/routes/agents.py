@@ -68,6 +68,18 @@ async def create_agent(request: CreateAgentRequest):
     return agent
 
 
+@router.get("/tools")
+async def list_tools():
+    """List all available tools."""
+    return agent_manager.list_available_tools()
+
+
+@router.get("/tools/available")
+async def list_available_tools():
+    """List all available tools (alias)."""
+    return agent_manager.list_available_tools()
+
+
 @router.get("/{agent_id}")
 async def get_agent(agent_id: str):
     """Get a specific agent."""
@@ -96,9 +108,3 @@ async def delete_agent(agent_id: str):
     if not success:
         raise HTTPException(status_code=404, detail="Agent not found or is built-in")
     return {"status": "deleted"}
-
-
-@router.get("/tools/available")
-async def list_available_tools():
-    """List all available tools."""
-    return agent_manager.list_available_tools()
