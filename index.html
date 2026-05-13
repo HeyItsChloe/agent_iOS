@@ -1,0 +1,1328 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>iOS Agent Chat - Preview</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+    
+    * {
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+    }
+    
+    /* iOS-style scrollbar */
+    ::-webkit-scrollbar {
+      width: 6px;
+    }
+    ::-webkit-scrollbar-track {
+      background: transparent;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: #c1c1c1;
+      border-radius: 3px;
+    }
+    
+    /* Message bubble tails */
+    .bubble-user::after {
+      content: '';
+      position: absolute;
+      right: -6px;
+      bottom: 0;
+      width: 12px;
+      height: 12px;
+      background: #007AFF;
+      border-bottom-left-radius: 12px;
+    }
+    .bubble-user::before {
+      content: '';
+      position: absolute;
+      right: -6px;
+      bottom: 0;
+      width: 12px;
+      height: 12px;
+      background: #f5f5f5;
+      border-bottom-left-radius: 6px;
+    }
+    
+    .bubble-agent::after {
+      content: '';
+      position: absolute;
+      left: -6px;
+      bottom: 0;
+      width: 12px;
+      height: 12px;
+      background: #E5E5EA;
+      border-bottom-right-radius: 12px;
+    }
+    .bubble-agent::before {
+      content: '';
+      position: absolute;
+      left: -6px;
+      bottom: 0;
+      width: 12px;
+      height: 12px;
+      background: #f5f5f5;
+      border-bottom-right-radius: 6px;
+    }
+    
+    /* Typing animation */
+    @keyframes typingBounce {
+      0%, 60%, 100% { transform: translateY(0); }
+      30% { transform: translateY(-4px); }
+    }
+    .typing-dot {
+      animation: typingBounce 1.4s infinite ease-in-out;
+    }
+    .typing-dot:nth-child(1) { animation-delay: 0s; }
+    .typing-dot:nth-child(2) { animation-delay: 0.2s; }
+    .typing-dot:nth-child(3) { animation-delay: 0.4s; }
+    
+    /* Modal animations */
+    .modal-overlay {
+      transition: opacity 0.2s ease-out;
+    }
+    .modal-content {
+      transition: transform 0.3s ease-out, opacity 0.2s ease-out;
+    }
+    .modal-overlay.hidden {
+      opacity: 0;
+      pointer-events: none;
+    }
+    .modal-overlay.hidden .modal-content {
+      transform: translateY(20px);
+      opacity: 0;
+    }
+    
+    /* Tab indicator */
+    .tab-active {
+      color: #007AFF;
+      border-bottom: 2px solid #007AFF;
+    }
+    
+    /* Checkbox styling */
+    .skill-checkbox:checked {
+      background-color: #007AFF;
+      border-color: #007AFF;
+    }
+    
+    /* Smooth transitions */
+    .view-transition {
+      transition: opacity 0.2s ease-out;
+    }
+  </style>
+</head>
+<body class="bg-gray-100 min-h-screen">
+  
+  <!-- App Container -->
+  <div class="max-w-6xl mx-auto p-4">
+    
+    <!-- Header -->
+    <div class="text-center mb-6">
+      <h1 class="text-3xl font-bold text-gray-800 mb-2">
+        <i class="fab fa-apple mr-2"></i>iOS Agent Chat
+      </h1>
+      <p class="text-gray-500">OpenHands SDK Desktop GUI Preview</p>
+    </div>
+    
+    <!-- View Selector Tabs -->
+    <div class="bg-white rounded-xl shadow-sm mb-4 overflow-hidden">
+      <div class="flex border-b overflow-x-auto">
+        <button onclick="showView('group-chat')" id="tab-group-chat" class="flex-1 py-3 px-4 text-sm font-medium tab-active whitespace-nowrap">
+          <i class="fas fa-users mr-2"></i>Group Chat
+        </button>
+        <button onclick="showView('subagent-chat')" id="tab-subagent-chat" class="flex-1 py-3 px-4 text-sm font-medium text-gray-500 hover:text-gray-700 whitespace-nowrap">
+          <i class="fas fa-sitemap mr-2"></i>Sub-Agents Chat
+        </button>
+        <button onclick="showView('skill-selector')" id="tab-skill-selector" class="flex-1 py-3 px-4 text-sm font-medium text-gray-500 hover:text-gray-700 whitespace-nowrap">
+          <i class="fas fa-magic mr-2"></i>Select Skills
+        </button>
+        <button onclick="showView('agent-selector')" id="tab-agent-selector" class="flex-1 py-3 px-4 text-sm font-medium text-gray-500 hover:text-gray-700 whitespace-nowrap">
+          <i class="fas fa-robot mr-2"></i>Select Agents
+        </button>
+        <button onclick="showView('create-agent')" id="tab-create-agent" class="flex-1 py-3 px-4 text-sm font-medium text-gray-500 hover:text-gray-700 whitespace-nowrap">
+          <i class="fas fa-plus-circle mr-2"></i>Create Agent
+        </button>
+        <button onclick="showView('create-skill')" id="tab-create-skill" class="flex-1 py-3 px-4 text-sm font-medium text-gray-500 hover:text-gray-700 whitespace-nowrap">
+          <i class="fas fa-wand-magic-sparkles mr-2"></i>Create Skill
+        </button>
+      </div>
+    </div>
+    
+    <!-- Main Content Area -->
+    <div class="flex gap-4">
+      
+      <!-- Conversation List Sidebar -->
+      <div class="w-80 bg-white rounded-xl shadow-sm overflow-hidden flex-shrink-0">
+        <div class="p-4 border-b bg-gray-50">
+          <div class="flex items-center justify-between mb-3">
+            <h2 class="text-xl font-bold">Messages</h2>
+            <button onclick="showModal('new-chat-modal')" class="w-8 h-8 bg-blue-500 text-white rounded-full flex items-center justify-center hover:bg-blue-600 transition">
+              <i class="fas fa-pen-to-square text-sm"></i>
+            </button>
+          </div>
+          <div class="relative">
+            <input type="text" placeholder="Search" class="w-full bg-gray-200 rounded-lg px-4 py-2 pl-10 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+            <i class="fas fa-search absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"></i>
+          </div>
+        </div>
+        
+        <!-- Conversation Items -->
+        <div class="overflow-y-auto" style="max-height: 500px;">
+          <!-- Group Chat Item -->
+          <div class="p-3 border-b hover:bg-gray-50 cursor-pointer bg-blue-50" onclick="showView('group-chat')">
+            <div class="flex items-start gap-3">
+              <div class="relative">
+                <div class="w-12 h-12 bg-gradient-to-br from-purple-500 to-pink-500 rounded-full flex items-center justify-center text-white">
+                  <i class="fas fa-users"></i>
+                </div>
+                <span class="absolute -bottom-1 -right-1 w-5 h-5 bg-green-500 rounded-full border-2 border-white text-white text-xs flex items-center justify-center">3</span>
+              </div>
+              <div class="flex-1 min-w-0">
+                <div class="flex items-center justify-between">
+                  <span class="font-semibold text-gray-800">Trip Planning Team</span>
+                  <span class="text-xs text-gray-400">2m</span>
+                </div>
+                <div class="flex items-center gap-1 mt-0.5">
+                  <span class="text-xs bg-purple-100 text-purple-700 px-1.5 py-0.5 rounded">Travel</span>
+                  <span class="text-xs bg-green-100 text-green-700 px-1.5 py-0.5 rounded">Budget</span>
+                </div>
+                <p class="text-sm text-gray-500 truncate mt-1">Based on your preferences, I recommend...</p>
+              </div>
+            </div>
+          </div>
+          
+          <!-- Sub-Agent Chat Item -->
+          <div class="p-3 border-b hover:bg-gray-50 cursor-pointer" onclick="showView('subagent-chat')">
+            <div class="flex items-start gap-3">
+              <div class="w-12 h-12 bg-gradient-to-br from-blue-500 to-cyan-500 rounded-full flex items-center justify-center text-white">
+                <i class="fas fa-brain"></i>
+              </div>
+              <div class="flex-1 min-w-0">
+                <div class="flex items-center justify-between">
+                  <span class="font-semibold text-gray-800">Planning Assistant</span>
+                  <span class="text-xs text-gray-400">15m</span>
+                </div>
+                <div class="flex items-center gap-1 mt-0.5">
+                  <span class="text-xs bg-blue-100 text-blue-700 px-1.5 py-0.5 rounded">🎭 Delegator</span>
+                </div>
+                <p class="text-sm text-gray-500 truncate mt-1">I've consulted my specialists...</p>
+              </div>
+            </div>
+          </div>
+          
+          <!-- Single Agent Chat Item -->
+          <div class="p-3 border-b hover:bg-gray-50 cursor-pointer">
+            <div class="flex items-start gap-3">
+              <div class="w-12 h-12 bg-gradient-to-br from-green-500 to-emerald-500 rounded-full flex items-center justify-center text-white">
+                <i class="fas fa-code"></i>
+              </div>
+              <div class="flex-1 min-w-0">
+                <div class="flex items-center justify-between">
+                  <span class="font-semibold text-gray-800">Coding Expert</span>
+                  <span class="text-xs text-gray-400">1h</span>
+                </div>
+                <div class="flex items-center gap-1 mt-0.5">
+                  <span class="text-xs bg-yellow-100 text-yellow-700 px-1.5 py-0.5 rounded">Python</span>
+                  <span class="text-xs bg-gray-100 text-gray-700 px-1.5 py-0.5 rounded">TypeScript</span>
+                </div>
+                <p class="text-sm text-gray-500 truncate mt-1">Here's the refactored code with...</p>
+              </div>
+            </div>
+          </div>
+          
+          <!-- More items -->
+          <div class="p-3 border-b hover:bg-gray-50 cursor-pointer">
+            <div class="flex items-start gap-3">
+              <div class="w-12 h-12 bg-gradient-to-br from-orange-500 to-red-500 rounded-full flex items-center justify-center text-white">
+                <i class="fas fa-file-alt"></i>
+              </div>
+              <div class="flex-1 min-w-0">
+                <div class="flex items-center justify-between">
+                  <span class="font-semibold text-gray-800">Documentation Writer</span>
+                  <span class="text-xs text-gray-400">3h</span>
+                </div>
+                <p class="text-sm text-gray-500 truncate mt-1">I've updated the API docs...</p>
+              </div>
+            </div>
+          </div>
+          
+          <div class="p-3 border-b hover:bg-gray-50 cursor-pointer">
+            <div class="flex items-start gap-3">
+              <div class="w-12 h-12 bg-gradient-to-br from-indigo-500 to-purple-500 rounded-full flex items-center justify-center text-white">
+                <i class="fas fa-chart-line"></i>
+              </div>
+              <div class="flex-1 min-w-0">
+                <div class="flex items-center justify-between">
+                  <span class="font-semibold text-gray-800">Data Analyst</span>
+                  <span class="text-xs text-gray-400">1d</span>
+                </div>
+                <p class="text-sm text-gray-500 truncate mt-1">The analysis shows a 23% increase...</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      
+      <!-- Chat View Area -->
+      <div class="flex-1 bg-white rounded-xl shadow-sm overflow-hidden flex flex-col" style="height: 580px;">
+        
+        <!-- View: Group Chat -->
+        <div id="view-group-chat" class="flex flex-col h-full view-transition">
+          <!-- Chat Header -->
+          <div class="p-4 border-b bg-gray-50 flex items-center justify-between">
+            <div class="flex items-center gap-3">
+              <button class="text-blue-500 hover:text-blue-600">
+                <i class="fas fa-chevron-left text-xl"></i>
+              </button>
+              <div class="w-10 h-10 bg-gradient-to-br from-purple-500 to-pink-500 rounded-full flex items-center justify-center text-white">
+                <i class="fas fa-users text-sm"></i>
+              </div>
+              <div>
+                <h3 class="font-semibold">Trip Planning Team</h3>
+                <p class="text-xs text-gray-500">
+                  <span class="inline-flex items-center">
+                    <span class="w-2 h-2 bg-green-500 rounded-full mr-1"></span>
+                    3 agents active
+                  </span>
+                </p>
+              </div>
+            </div>
+            <div class="flex items-center gap-2">
+              <button class="text-blue-500 px-3 py-1 rounded-full hover:bg-blue-50">
+                <i class="fas fa-cog mr-1"></i>
+                <span class="text-xs">🔧 2 skills</span>
+              </button>
+              <button class="text-blue-500 hover:text-blue-600">
+                <i class="fas fa-info-circle text-xl"></i>
+              </button>
+            </div>
+          </div>
+          
+          <!-- Messages Area -->
+          <div class="flex-1 overflow-y-auto p-4 bg-gray-50" style="background-image: url('data:image/svg+xml,<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 100 100\"><rect fill=\"%23f5f5f5\" width=\"100\" height=\"100\"/></svg>');">
+            
+            <!-- Date Separator -->
+            <div class="text-center mb-4">
+              <span class="bg-gray-200 text-gray-500 text-xs px-3 py-1 rounded-full">Today</span>
+            </div>
+            
+            <!-- User Message -->
+            <div class="flex justify-end mb-3">
+              <div class="max-w-xs">
+                <div class="bg-blue-500 text-white px-4 py-2 rounded-2xl rounded-br-sm relative bubble-user">
+                  Plan my trip to Tokyo for next month. I want a mix of culture and nightlife.
+                </div>
+                <div class="text-right mt-1">
+                  <span class="text-xs text-gray-400">10:30 AM</span>
+                  <span class="text-xs text-blue-500 ml-1">Read</span>
+                </div>
+              </div>
+            </div>
+            
+            <!-- Agent 1 Response (Lodging) -->
+            <div class="flex justify-start mb-3 items-end gap-2">
+              <div class="w-8 h-8 bg-green-500 rounded-full flex items-center justify-center text-white text-xs font-medium flex-shrink-0">
+                L
+              </div>
+              <div class="max-w-sm">
+                <span class="text-xs text-gray-500 ml-1">Lodging Expert</span>
+                <div class="bg-gray-200 text-gray-800 px-4 py-2 rounded-2xl rounded-bl-sm mt-1 relative bubble-agent">
+                  <p class="mb-2">🏨 <strong>For lodging, I recommend:</strong></p>
+                  <ul class="text-sm space-y-1">
+                    <li>• <strong>Shinjuku</strong> - Best for nightlife & transit</li>
+                    <li>• <strong>Shibuya</strong> - Trendy, great for young travelers</li>
+                    <li>• <strong>Asakusa</strong> - Traditional culture vibes</li>
+                  </ul>
+                  <p class="text-sm mt-2 text-gray-600">Budget: $80-150/night for quality hotels</p>
+                </div>
+              </div>
+            </div>
+            
+            <!-- Agent 2 Response (Activities) -->
+            <div class="flex justify-start mb-3 items-end gap-2">
+              <div class="w-8 h-8 bg-blue-500 rounded-full flex items-center justify-center text-white text-xs font-medium flex-shrink-0">
+                A
+              </div>
+              <div class="max-w-sm">
+                <span class="text-xs text-gray-500 ml-1">Activities Expert</span>
+                <div class="bg-gray-200 text-gray-800 px-4 py-2 rounded-2xl rounded-bl-sm mt-1">
+                  <p class="mb-2">🎯 <strong>Must-see attractions:</strong></p>
+                  <ol class="text-sm space-y-1">
+                    <li>1. Senso-ji Temple (Asakusa)</li>
+                    <li>2. Shibuya Crossing</li>
+                    <li>3. TeamLab Borderless</li>
+                    <li>4. Golden Gai (nightlife)</li>
+                    <li>5. Tsukiji Outer Market</li>
+                  </ol>
+                  <p class="text-sm mt-2 text-gray-600">Pro tip: Book TeamLab tickets 2 weeks ahead!</p>
+                </div>
+              </div>
+            </div>
+            
+            <!-- Agent 3 Response (Finance) -->
+            <div class="flex justify-start mb-3 items-end gap-2">
+              <div class="w-8 h-8 bg-purple-500 rounded-full flex items-center justify-center text-white text-xs font-medium flex-shrink-0">
+                F
+              </div>
+              <div class="max-w-sm">
+                <span class="text-xs text-gray-500 ml-1">Finance Expert</span>
+                <div class="bg-gray-200 text-gray-800 px-4 py-2 rounded-2xl rounded-bl-sm mt-1">
+                  <p class="mb-2">💰 <strong>Budget breakdown (7 days):</strong></p>
+                  <div class="text-sm space-y-1 bg-white rounded-lg p-2 mt-1">
+                    <div class="flex justify-between">
+                      <span>Flights (round trip)</span>
+                      <span class="font-medium">$800-1,200</span>
+                    </div>
+                    <div class="flex justify-between">
+                      <span>Hotels (7 nights)</span>
+                      <span class="font-medium">$700-1,050</span>
+                    </div>
+                    <div class="flex justify-between">
+                      <span>Food & Activities</span>
+                      <span class="font-medium">$500-800</span>
+                    </div>
+                    <div class="flex justify-between border-t pt-1 mt-1">
+                      <span class="font-semibold">Total</span>
+                      <span class="font-semibold text-green-600">$2,000-3,050</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+            
+            <!-- User @ mention -->
+            <div class="flex justify-end mb-3">
+              <div class="max-w-xs">
+                <div class="bg-blue-500 text-white px-4 py-2 rounded-2xl rounded-br-sm">
+                  <span class="bg-blue-400 px-1 rounded">@Finance</span> What about getting a JR Pass?
+                </div>
+              </div>
+            </div>
+            
+            <!-- Typing Indicators -->
+            <div class="flex items-center gap-2 mb-2">
+              <div class="flex -space-x-2">
+                <div class="w-6 h-6 bg-purple-500 rounded-full border-2 border-white flex items-center justify-center text-white text-xs">F</div>
+              </div>
+              <div class="bg-gray-200 rounded-full px-4 py-2 flex gap-1">
+                <span class="w-2 h-2 bg-gray-400 rounded-full typing-dot"></span>
+                <span class="w-2 h-2 bg-gray-400 rounded-full typing-dot"></span>
+                <span class="w-2 h-2 bg-gray-400 rounded-full typing-dot"></span>
+              </div>
+              <span class="text-xs text-gray-500">Finance Expert is typing...</span>
+            </div>
+          </div>
+          
+          <!-- Input Bar -->
+          <div class="p-3 border-t bg-white">
+            <div class="flex items-center gap-2">
+              <button class="text-gray-400 hover:text-gray-600">
+                <i class="fas fa-plus-circle text-2xl"></i>
+              </button>
+              <div class="flex-1 relative">
+                <input type="text" placeholder="Message @agent..." class="w-full bg-gray-100 rounded-full px-4 py-2 pr-10 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                <button class="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">
+                  <i class="fas fa-face-smile text-xl"></i>
+                </button>
+              </div>
+              <button class="w-10 h-10 bg-blue-500 text-white rounded-full flex items-center justify-center hover:bg-blue-600 transition">
+                <i class="fas fa-arrow-up"></i>
+              </button>
+            </div>
+          </div>
+        </div>
+        
+        <!-- View: Sub-Agent Chat -->
+        <div id="view-subagent-chat" class="flex flex-col h-full view-transition hidden">
+          <!-- Chat Header -->
+          <div class="p-4 border-b bg-gray-50 flex items-center justify-between">
+            <div class="flex items-center gap-3">
+              <button class="text-blue-500 hover:text-blue-600">
+                <i class="fas fa-chevron-left text-xl"></i>
+              </button>
+              <div class="w-10 h-10 bg-gradient-to-br from-blue-500 to-cyan-500 rounded-full flex items-center justify-center text-white">
+                <i class="fas fa-brain text-sm"></i>
+              </div>
+              <div>
+                <h3 class="font-semibold">Planning Assistant</h3>
+                <p class="text-xs text-gray-500">
+                  <span class="inline-flex items-center">
+                    <span class="bg-blue-100 text-blue-700 px-1.5 py-0.5 rounded text-xs">🎭 Delegator Mode</span>
+                  </span>
+                </p>
+              </div>
+            </div>
+            <div class="flex items-center gap-2">
+              <button class="text-blue-500 hover:text-blue-600">
+                <i class="fas fa-info-circle text-xl"></i>
+              </button>
+            </div>
+          </div>
+          
+          <!-- Messages Area -->
+          <div class="flex-1 overflow-y-auto p-4 bg-gray-50">
+            
+            <!-- Date Separator -->
+            <div class="text-center mb-4">
+              <span class="bg-gray-200 text-gray-500 text-xs px-3 py-1 rounded-full">Today</span>
+            </div>
+            
+            <!-- User Message -->
+            <div class="flex justify-end mb-3">
+              <div class="max-w-xs">
+                <div class="bg-blue-500 text-white px-4 py-2 rounded-2xl rounded-br-sm">
+                  Plan a 3-day trip to London with lodging and activities.
+                </div>
+              </div>
+            </div>
+            
+            <!-- Main Agent Response with Nested Sub-Agent Results -->
+            <div class="flex justify-start mb-3 items-end gap-2">
+              <div class="w-8 h-8 bg-gradient-to-br from-blue-500 to-cyan-500 rounded-full flex items-center justify-center text-white flex-shrink-0">
+                <i class="fas fa-brain text-xs"></i>
+              </div>
+              <div class="max-w-md">
+                <div class="bg-gray-200 text-gray-800 px-4 py-3 rounded-2xl rounded-bl-sm">
+                  <p class="mb-3">I'll help you plan your London trip! Let me consult my specialists for the best recommendations...</p>
+                  
+                  <!-- Sub-agent Result Card 1 -->
+                  <div class="bg-white rounded-xl p-3 mb-2 border border-gray-100 shadow-sm">
+                    <div class="flex items-center gap-2 mb-2">
+                      <span class="w-6 h-6 bg-green-500 rounded-full flex items-center justify-center text-white text-xs">🏨</span>
+                      <span class="font-medium text-sm text-green-700">Lodging Expert says:</span>
+                    </div>
+                    <div class="text-sm text-gray-700 pl-8">
+                      <p class="mb-1"><strong>Recommended areas:</strong></p>
+                      <ul class="space-y-0.5 text-gray-600">
+                        <li>• <strong>Covent Garden</strong> - Central, vibrant, walkable</li>
+                        <li>• <strong>South Bank</strong> - River views, cultural hubs</li>
+                        <li>• <strong>Shoreditch</strong> - Trendy, great nightlife</li>
+                      </ul>
+                      <p class="mt-1 text-xs text-gray-500">💡 Budget: £120-200/night for mid-range</p>
+                    </div>
+                  </div>
+                  
+                  <!-- Sub-agent Result Card 2 -->
+                  <div class="bg-white rounded-xl p-3 mb-3 border border-gray-100 shadow-sm">
+                    <div class="flex items-center gap-2 mb-2">
+                      <span class="w-6 h-6 bg-orange-500 rounded-full flex items-center justify-center text-white text-xs">🎯</span>
+                      <span class="font-medium text-sm text-orange-700">Activities Expert says:</span>
+                    </div>
+                    <div class="text-sm text-gray-700 pl-8">
+                      <p class="mb-1"><strong>3-Day Itinerary:</strong></p>
+                      <div class="space-y-1 text-gray-600">
+                        <p><strong>Day 1:</strong> Westminster, Big Ben, London Eye</p>
+                        <p><strong>Day 2:</strong> British Museum, Covent Garden, West End show</p>
+                        <p><strong>Day 3:</strong> Tower of London, Borough Market, Thames walk</p>
+                      </div>
+                      <p class="mt-1 text-xs text-gray-500">⏰ Book West End tickets in advance!</p>
+                    </div>
+                  </div>
+                  
+                  <p class="text-sm border-t border-gray-300 pt-2 mt-2">
+                    <strong>My consolidated recommendation:</strong> Stay in Covent Garden for the best access to attractions. Budget around £1,500-2,000 for 3 days including flights, accommodation, and activities.
+                  </p>
+                </div>
+              </div>
+            </div>
+            
+            <!-- Follow-up User Message -->
+            <div class="flex justify-end mb-3">
+              <div class="max-w-xs">
+                <div class="bg-blue-500 text-white px-4 py-2 rounded-2xl rounded-br-sm">
+                  Ask the lodging expert about Covent Garden specifically.
+                </div>
+              </div>
+            </div>
+            
+            <!-- Agent consulting sub-agent -->
+            <div class="flex justify-start mb-3 items-end gap-2">
+              <div class="w-8 h-8 bg-gradient-to-br from-blue-500 to-cyan-500 rounded-full flex items-center justify-center text-white flex-shrink-0">
+                <i class="fas fa-brain text-xs"></i>
+              </div>
+              <div class="max-w-md">
+                <div class="bg-gray-200 text-gray-800 px-4 py-3 rounded-2xl rounded-bl-sm">
+                  <p class="mb-2 text-sm text-gray-500 italic">
+                    <i class="fas fa-sync-alt mr-1"></i> Consulting lodging expert...
+                  </p>
+                  
+                  <!-- Single Sub-agent Result -->
+                  <div class="bg-white rounded-xl p-3 border border-gray-100 shadow-sm">
+                    <div class="flex items-center gap-2 mb-2">
+                      <span class="w-6 h-6 bg-green-500 rounded-full flex items-center justify-center text-white text-xs">🏨</span>
+                      <span class="font-medium text-sm text-green-700">Lodging Expert says:</span>
+                    </div>
+                    <div class="text-sm text-gray-700 pl-8">
+                      <p><strong>Covent Garden</strong> is excellent because:</p>
+                      <ul class="mt-1 space-y-0.5 text-gray-600">
+                        <li>✅ Walking distance to West End theaters</li>
+                        <li>✅ Great restaurants and street performers</li>
+                        <li>✅ Easy tube access (Piccadilly & Northern lines)</li>
+                        <li>⚠️ Can be noisy at night - request room facing courtyard</li>
+                      </ul>
+                      <p class="mt-2"><strong>Top picks:</strong> The Henrietta Hotel, NoMad London, or Covent Garden Hotel</p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+            
+          </div>
+          
+          <!-- Input Bar -->
+          <div class="p-3 border-t bg-white">
+            <div class="flex items-center gap-2">
+              <button class="text-gray-400 hover:text-gray-600">
+                <i class="fas fa-plus-circle text-2xl"></i>
+              </button>
+              <div class="flex-1 relative">
+                <input type="text" placeholder="Message..." class="w-full bg-gray-100 rounded-full px-4 py-2 pr-10 focus:outline-none focus:ring-2 focus:ring-blue-500">
+              </div>
+              <button class="w-10 h-10 bg-blue-500 text-white rounded-full flex items-center justify-center hover:bg-blue-600 transition">
+                <i class="fas fa-arrow-up"></i>
+              </button>
+            </div>
+          </div>
+        </div>
+        
+        <!-- View: Skill Selector -->
+        <div id="view-skill-selector" class="flex flex-col h-full view-transition hidden">
+          <div class="p-4 border-b bg-gray-50 flex items-center justify-between">
+            <div class="flex items-center gap-3">
+              <button class="text-blue-500 hover:text-blue-600">
+                <i class="fas fa-times text-xl"></i>
+              </button>
+              <h3 class="font-semibold text-lg">Add Skills</h3>
+            </div>
+            <button class="text-blue-500 font-medium">Done</button>
+          </div>
+          
+          <div class="p-4">
+            <div class="relative mb-4">
+              <input type="text" placeholder="Search skills..." class="w-full bg-gray-100 rounded-lg px-4 py-3 pl-10 focus:outline-none focus:ring-2 focus:ring-blue-500">
+              <i class="fas fa-search absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"></i>
+            </div>
+          </div>
+          
+          <div class="flex-1 overflow-y-auto px-4">
+            <!-- Coding Category -->
+            <div class="mb-6">
+              <h4 class="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">Coding</h4>
+              <div class="space-y-2">
+                <label class="flex items-start gap-3 p-3 bg-white rounded-xl border border-gray-200 cursor-pointer hover:border-blue-300 transition">
+                  <input type="checkbox" checked class="mt-1 w-5 h-5 rounded border-gray-300 text-blue-500 focus:ring-blue-500 skill-checkbox">
+                  <div class="flex-1">
+                    <div class="flex items-center gap-2">
+                      <span class="text-lg">🐍</span>
+                      <span class="font-medium">Python Expert</span>
+                    </div>
+                    <p class="text-sm text-gray-500 mt-0.5">Deep knowledge of Python best practices, type hints, and modern patterns</p>
+                  </div>
+                </label>
+                
+                <label class="flex items-start gap-3 p-3 bg-white rounded-xl border border-gray-200 cursor-pointer hover:border-blue-300 transition">
+                  <input type="checkbox" class="mt-1 w-5 h-5 rounded border-gray-300 text-blue-500 focus:ring-blue-500 skill-checkbox">
+                  <div class="flex-1">
+                    <div class="flex items-center gap-2">
+                      <span class="text-lg">⚛️</span>
+                      <span class="font-medium">TypeScript/React</span>
+                    </div>
+                    <p class="text-sm text-gray-500 mt-0.5">Frontend development with React, hooks, and TypeScript</p>
+                  </div>
+                </label>
+                
+                <label class="flex items-start gap-3 p-3 bg-white rounded-xl border border-gray-200 cursor-pointer hover:border-blue-300 transition">
+                  <input type="checkbox" class="mt-1 w-5 h-5 rounded border-gray-300 text-blue-500 focus:ring-blue-500 skill-checkbox">
+                  <div class="flex-1">
+                    <div class="flex items-center gap-2">
+                      <span class="text-lg">🗄️</span>
+                      <span class="font-medium">Database Design</span>
+                    </div>
+                    <p class="text-sm text-gray-500 mt-0.5">SQL, NoSQL, schema optimization, and query performance</p>
+                  </div>
+                </label>
+              </div>
+            </div>
+            
+            <!-- Documentation Category -->
+            <div class="mb-6">
+              <h4 class="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">Documentation</h4>
+              <div class="space-y-2">
+                <label class="flex items-start gap-3 p-3 bg-white rounded-xl border border-gray-200 cursor-pointer hover:border-blue-300 transition">
+                  <input type="checkbox" checked class="mt-1 w-5 h-5 rounded border-gray-300 text-blue-500 focus:ring-blue-500 skill-checkbox">
+                  <div class="flex-1">
+                    <div class="flex items-center gap-2">
+                      <span class="text-lg">📝</span>
+                      <span class="font-medium">Technical Writer</span>
+                    </div>
+                    <p class="text-sm text-gray-500 mt-0.5">Clear, concise documentation with proper structure</p>
+                  </div>
+                </label>
+                
+                <label class="flex items-start gap-3 p-3 bg-white rounded-xl border border-gray-200 cursor-pointer hover:border-blue-300 transition">
+                  <input type="checkbox" class="mt-1 w-5 h-5 rounded border-gray-300 text-blue-500 focus:ring-blue-500 skill-checkbox">
+                  <div class="flex-1">
+                    <div class="flex items-center gap-2">
+                      <span class="text-lg">📚</span>
+                      <span class="font-medium">API Documentation</span>
+                    </div>
+                    <p class="text-sm text-gray-500 mt-0.5">OpenAPI specs, endpoint docs, and examples</p>
+                  </div>
+                </label>
+              </div>
+            </div>
+            
+            <!-- Analysis Category -->
+            <div class="mb-6">
+              <h4 class="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">Analysis</h4>
+              <div class="space-y-2">
+                <label class="flex items-start gap-3 p-3 bg-white rounded-xl border border-gray-200 cursor-pointer hover:border-blue-300 transition">
+                  <input type="checkbox" class="mt-1 w-5 h-5 rounded border-gray-300 text-blue-500 focus:ring-blue-500 skill-checkbox">
+                  <div class="flex-1">
+                    <div class="flex items-center gap-2">
+                      <span class="text-lg">🔒</span>
+                      <span class="font-medium">Security Analyst</span>
+                    </div>
+                    <p class="text-sm text-gray-500 mt-0.5">Identify vulnerabilities, suggest secure patterns</p>
+                  </div>
+                </label>
+                
+                <label class="flex items-start gap-3 p-3 bg-white rounded-xl border border-gray-200 cursor-pointer hover:border-blue-300 transition">
+                  <input type="checkbox" class="mt-1 w-5 h-5 rounded border-gray-300 text-blue-500 focus:ring-blue-500 skill-checkbox">
+                  <div class="flex-1">
+                    <div class="flex items-center gap-2">
+                      <span class="text-lg">⚡</span>
+                      <span class="font-medium">Performance Optimizer</span>
+                    </div>
+                    <p class="text-sm text-gray-500 mt-0.5">Code profiling, bottleneck identification, optimization</p>
+                  </div>
+                </label>
+              </div>
+            </div>
+            
+            <!-- Custom Category -->
+            <div class="mb-6">
+              <div class="flex items-center justify-between mb-2">
+                <h4 class="text-xs font-semibold text-gray-500 uppercase tracking-wider">Custom</h4>
+                <button onclick="showView('create-skill')" class="text-blue-500 text-sm font-medium hover:text-blue-600">
+                  <i class="fas fa-plus mr-1"></i> Create
+                </button>
+              </div>
+              <div class="space-y-2">
+                <label class="flex items-start gap-3 p-3 bg-white rounded-xl border border-gray-200 cursor-pointer hover:border-blue-300 transition">
+                  <input type="checkbox" class="mt-1 w-5 h-5 rounded border-gray-300 text-blue-500 focus:ring-blue-500 skill-checkbox">
+                  <div class="flex-1">
+                    <div class="flex items-center gap-2">
+                      <span class="text-lg">🏢</span>
+                      <span class="font-medium">My Company Style Guide</span>
+                    </div>
+                    <p class="text-sm text-gray-500 mt-0.5">Internal coding standards and conventions</p>
+                  </div>
+                </label>
+              </div>
+            </div>
+          </div>
+          
+          <!-- Footer -->
+          <div class="p-4 border-t bg-gray-50">
+            <div class="flex items-center justify-between">
+              <span class="text-sm text-gray-500">2 skills selected</span>
+              <button class="bg-blue-500 text-white px-6 py-2 rounded-full font-medium hover:bg-blue-600 transition">
+                Apply Skills
+              </button>
+            </div>
+          </div>
+        </div>
+        
+        <!-- View: Agent Selector -->
+        <div id="view-agent-selector" class="flex flex-col h-full view-transition hidden">
+          <div class="p-4 border-b bg-gray-50 flex items-center justify-between">
+            <div class="flex items-center gap-3">
+              <button class="text-blue-500 hover:text-blue-600">
+                <i class="fas fa-times text-xl"></i>
+              </button>
+              <h3 class="font-semibold text-lg">Select Agents</h3>
+            </div>
+            <button class="text-blue-500 font-medium">Done</button>
+          </div>
+          
+          <!-- Chat Type Selector -->
+          <div class="p-4 border-b">
+            <p class="text-sm text-gray-500 mb-3">Chat Type</p>
+            <div class="grid grid-cols-3 gap-2">
+              <button class="p-3 bg-white border-2 border-gray-200 rounded-xl text-center hover:border-blue-300 transition">
+                <div class="w-10 h-10 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-2">
+                  <i class="fas fa-user text-gray-600"></i>
+                </div>
+                <span class="text-sm font-medium">Single Agent</span>
+              </button>
+              <button class="p-3 bg-blue-50 border-2 border-blue-500 rounded-xl text-center">
+                <div class="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-2">
+                  <i class="fas fa-sitemap text-blue-600"></i>
+                </div>
+                <span class="text-sm font-medium text-blue-700">Delegator</span>
+              </button>
+              <button class="p-3 bg-white border-2 border-gray-200 rounded-xl text-center hover:border-blue-300 transition">
+                <div class="w-10 h-10 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-2">
+                  <i class="fas fa-users text-gray-600"></i>
+                </div>
+                <span class="text-sm font-medium">Group Chat</span>
+              </button>
+            </div>
+          </div>
+          
+          <div class="p-4">
+            <div class="relative mb-2">
+              <input type="text" placeholder="Search agents..." class="w-full bg-gray-100 rounded-lg px-4 py-3 pl-10 focus:outline-none focus:ring-2 focus:ring-blue-500">
+              <i class="fas fa-search absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"></i>
+            </div>
+          </div>
+          
+          <div class="flex-1 overflow-y-auto px-4">
+            <!-- Main Agents Section -->
+            <div class="mb-6">
+              <h4 class="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">Main Agent</h4>
+              <div class="space-y-2">
+                <label class="flex items-center gap-3 p-3 bg-blue-50 rounded-xl border-2 border-blue-500 cursor-pointer">
+                  <input type="radio" name="main-agent" checked class="w-5 h-5 text-blue-500">
+                  <div class="w-10 h-10 bg-gradient-to-br from-blue-500 to-cyan-500 rounded-full flex items-center justify-center text-white">
+                    <i class="fas fa-brain"></i>
+                  </div>
+                  <div class="flex-1">
+                    <span class="font-medium">Planning Assistant</span>
+                    <p class="text-sm text-gray-500">General-purpose delegator with orchestration capabilities</p>
+                  </div>
+                </label>
+                
+                <label class="flex items-center gap-3 p-3 bg-white rounded-xl border border-gray-200 cursor-pointer hover:border-blue-300 transition">
+                  <input type="radio" name="main-agent" class="w-5 h-5 text-blue-500">
+                  <div class="w-10 h-10 bg-gradient-to-br from-green-500 to-emerald-500 rounded-full flex items-center justify-center text-white">
+                    <i class="fas fa-code"></i>
+                  </div>
+                  <div class="flex-1">
+                    <span class="font-medium">Coding Expert</span>
+                    <p class="text-sm text-gray-500">Specialized in code review and implementation</p>
+                  </div>
+                </label>
+              </div>
+            </div>
+            
+            <!-- Sub-Agents Section -->
+            <div class="mb-6">
+              <div class="flex items-center justify-between mb-2">
+                <h4 class="text-xs font-semibold text-gray-500 uppercase tracking-wider">Available Sub-Agents</h4>
+                <button onclick="showView('create-agent')" class="text-blue-500 text-sm font-medium hover:text-blue-600">
+                  <i class="fas fa-plus mr-1"></i> Create
+                </button>
+              </div>
+              <div class="space-y-2">
+                <label class="flex items-center gap-3 p-3 bg-white rounded-xl border border-gray-200 cursor-pointer hover:border-blue-300 transition">
+                  <input type="checkbox" checked class="w-5 h-5 rounded border-gray-300 text-blue-500 focus:ring-blue-500">
+                  <div class="w-10 h-10 bg-green-500 rounded-full flex items-center justify-center text-white">
+                    🏨
+                  </div>
+                  <div class="flex-1">
+                    <span class="font-medium">Lodging Expert</span>
+                    <p class="text-sm text-gray-500">Finds accommodation with transit-friendly picks</p>
+                  </div>
+                </label>
+                
+                <label class="flex items-center gap-3 p-3 bg-white rounded-xl border border-gray-200 cursor-pointer hover:border-blue-300 transition">
+                  <input type="checkbox" checked class="w-5 h-5 rounded border-gray-300 text-blue-500 focus:ring-blue-500">
+                  <div class="w-10 h-10 bg-orange-500 rounded-full flex items-center justify-center text-white">
+                    🎯
+                  </div>
+                  <div class="flex-1">
+                    <span class="font-medium">Activities Expert</span>
+                    <p class="text-sm text-gray-500">Creates time-efficient activity itineraries</p>
+                  </div>
+                </label>
+                
+                <label class="flex items-center gap-3 p-3 bg-white rounded-xl border border-gray-200 cursor-pointer hover:border-blue-300 transition">
+                  <input type="checkbox" class="w-5 h-5 rounded border-gray-300 text-blue-500 focus:ring-blue-500">
+                  <div class="w-10 h-10 bg-purple-500 rounded-full flex items-center justify-center text-white">
+                    💰
+                  </div>
+                  <div class="flex-1">
+                    <span class="font-medium">Finance Expert</span>
+                    <p class="text-sm text-gray-500">Budget planning and cost breakdowns</p>
+                  </div>
+                </label>
+                
+                <label class="flex items-center gap-3 p-3 bg-white rounded-xl border border-gray-200 cursor-pointer hover:border-blue-300 transition">
+                  <input type="checkbox" class="w-5 h-5 rounded border-gray-300 text-blue-500 focus:ring-blue-500">
+                  <div class="w-10 h-10 bg-red-500 rounded-full flex items-center justify-center text-white">
+                    <i class="fas fa-search"></i>
+                  </div>
+                  <div class="flex-1">
+                    <span class="font-medium">Research Expert</span>
+                    <p class="text-sm text-gray-500">Deep research and fact-finding</p>
+                  </div>
+                </label>
+              </div>
+            </div>
+            
+            <!-- Built-in Agents Section -->
+            <div class="mb-6">
+              <h4 class="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">Built-in Agents</h4>
+              <div class="space-y-2">
+                <label class="flex items-center gap-3 p-3 bg-white rounded-xl border border-gray-200 cursor-pointer hover:border-blue-300 transition">
+                  <input type="checkbox" class="w-5 h-5 rounded border-gray-300 text-blue-500 focus:ring-blue-500">
+                  <div class="w-10 h-10 bg-gray-700 rounded-full flex items-center justify-center text-white">
+                    <i class="fas fa-terminal"></i>
+                  </div>
+                  <div class="flex-1">
+                    <span class="font-medium">Bash Agent</span>
+                    <p class="text-sm text-gray-500">Execute terminal commands</p>
+                  </div>
+                </label>
+                
+                <label class="flex items-center gap-3 p-3 bg-white rounded-xl border border-gray-200 cursor-pointer hover:border-blue-300 transition">
+                  <input type="checkbox" class="w-5 h-5 rounded border-gray-300 text-blue-500 focus:ring-blue-500">
+                  <div class="w-10 h-10 bg-indigo-500 rounded-full flex items-center justify-center text-white">
+                    <i class="fas fa-folder-open"></i>
+                  </div>
+                  <div class="flex-1">
+                    <span class="font-medium">Explore Agent</span>
+                    <p class="text-sm text-gray-500">Navigate and analyze file systems</p>
+                  </div>
+                </label>
+              </div>
+            </div>
+          </div>
+          
+          <!-- Footer -->
+          <div class="p-4 border-t bg-gray-50">
+            <div class="flex items-center justify-between">
+              <span class="text-sm text-gray-500">2 sub-agents selected</span>
+              <button class="bg-blue-500 text-white px-6 py-2 rounded-full font-medium hover:bg-blue-600 transition">
+                Start Chat
+              </button>
+            </div>
+          </div>
+        </div>
+        
+        <!-- View: Create Agent -->
+        <div id="view-create-agent" class="flex flex-col h-full view-transition hidden">
+          <div class="p-4 border-b bg-gray-50 flex items-center justify-between">
+            <div class="flex items-center gap-3">
+              <button onclick="showView('agent-selector')" class="text-blue-500 hover:text-blue-600">
+                <i class="fas fa-chevron-left text-xl"></i>
+              </button>
+              <h3 class="font-semibold text-lg">Create Agent</h3>
+            </div>
+            <button class="text-blue-500 font-medium">Save</button>
+          </div>
+          
+          <div class="flex-1 overflow-y-auto p-4">
+            <!-- Avatar Picker -->
+            <div class="text-center mb-6">
+              <div class="w-20 h-20 bg-gradient-to-br from-pink-500 to-rose-500 rounded-full flex items-center justify-center text-white text-3xl mx-auto mb-2 cursor-pointer hover:opacity-90 transition">
+                🎨
+              </div>
+              <button class="text-blue-500 text-sm font-medium">Change Avatar</button>
+            </div>
+            
+            <!-- Form Fields -->
+            <div class="space-y-4">
+              <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">Agent Name</label>
+                <input type="text" placeholder="e.g., Design Expert" value="Design Expert" class="w-full border border-gray-300 rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+              </div>
+              
+              <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">Description</label>
+                <input type="text" placeholder="Brief description of what this agent does" value="Creates beautiful UI/UX designs and provides design feedback" class="w-full border border-gray-300 rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+              </div>
+              
+              <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">Color Theme</label>
+                <div class="flex gap-2">
+                  <button class="w-10 h-10 bg-blue-500 rounded-full border-2 border-transparent hover:border-gray-400"></button>
+                  <button class="w-10 h-10 bg-green-500 rounded-full border-2 border-transparent hover:border-gray-400"></button>
+                  <button class="w-10 h-10 bg-purple-500 rounded-full border-2 border-transparent hover:border-gray-400"></button>
+                  <button class="w-10 h-10 bg-orange-500 rounded-full border-2 border-transparent hover:border-gray-400"></button>
+                  <button class="w-10 h-10 bg-pink-500 rounded-full border-4 border-gray-800"></button>
+                  <button class="w-10 h-10 bg-red-500 rounded-full border-2 border-transparent hover:border-gray-400"></button>
+                  <button class="w-10 h-10 bg-cyan-500 rounded-full border-2 border-transparent hover:border-gray-400"></button>
+                </div>
+              </div>
+              
+              <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">System Prompt</label>
+                <textarea rows="5" placeholder="Define how this agent should behave..." class="w-full border border-gray-300 rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none">You are a Design Expert specializing in UI/UX design. You provide thoughtful feedback on visual design, user experience, accessibility, and design systems.
+
+When reviewing designs:
+- Focus on usability and clarity
+- Suggest improvements with specific examples
+- Consider accessibility (WCAG guidelines)
+- Recommend color palettes and typography</textarea>
+              </div>
+              
+              <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">Tools</label>
+                <div class="space-y-2">
+                  <!-- Terminal Tool -->
+                  <label class="flex items-start gap-3 p-3 bg-blue-50 rounded-xl border-2 border-blue-500 cursor-pointer">
+                    <input type="checkbox" checked class="mt-1 w-5 h-5 rounded border-gray-300 text-blue-500">
+                    <div class="w-10 h-10 bg-gray-800 rounded-lg flex items-center justify-center text-green-400 flex-shrink-0">
+                      <i class="fas fa-terminal"></i>
+                    </div>
+                    <div class="flex-1">
+                      <div class="flex items-center gap-2">
+                        <span class="font-medium">Terminal</span>
+                        <span class="text-xs bg-orange-100 text-orange-700 px-1.5 py-0.5 rounded">⚡ Destructive</span>
+                        <span class="text-xs bg-purple-100 text-purple-700 px-1.5 py-0.5 rounded">🌐 Open World</span>
+                      </div>
+                      <p class="text-sm text-gray-500 mt-0.5">Execute shell commands (bash, npm, git, python, etc.)</p>
+                    </div>
+                  </label>
+                  
+                  <!-- File Editor Tool -->
+                  <label class="flex items-start gap-3 p-3 bg-blue-50 rounded-xl border-2 border-blue-500 cursor-pointer">
+                    <input type="checkbox" checked class="mt-1 w-5 h-5 rounded border-gray-300 text-blue-500">
+                    <div class="w-10 h-10 bg-blue-600 rounded-lg flex items-center justify-center text-white flex-shrink-0">
+                      <i class="fas fa-file-code"></i>
+                    </div>
+                    <div class="flex-1">
+                      <div class="flex items-center gap-2">
+                        <span class="font-medium">File Editor</span>
+                        <span class="text-xs bg-orange-100 text-orange-700 px-1.5 py-0.5 rounded">⚡ Destructive</span>
+                      </div>
+                      <p class="text-sm text-gray-500 mt-0.5">View, create, edit files with str_replace, insert, undo</p>
+                    </div>
+                  </label>
+                  
+                  <!-- Task Tracker Tool -->
+                  <label class="flex items-start gap-3 p-3 bg-blue-50 rounded-xl border-2 border-blue-500 cursor-pointer">
+                    <input type="checkbox" checked class="mt-1 w-5 h-5 rounded border-gray-300 text-blue-500">
+                    <div class="w-10 h-10 bg-green-600 rounded-lg flex items-center justify-center text-white flex-shrink-0">
+                      <i class="fas fa-tasks"></i>
+                    </div>
+                    <div class="flex-1">
+                      <div class="flex items-center gap-2">
+                        <span class="font-medium">Task Tracker</span>
+                        <span class="text-xs bg-green-100 text-green-700 px-1.5 py-0.5 rounded">🔒 Safe</span>
+                        <span class="text-xs bg-blue-100 text-blue-700 px-1.5 py-0.5 rounded">♻️ Idempotent</span>
+                      </div>
+                      <p class="text-sm text-gray-500 mt-0.5">Plan and track tasks with todo/in_progress/done states</p>
+                    </div>
+                  </label>
+                  
+                  <!-- Browser Tool -->
+                  <label class="flex items-start gap-3 p-3 bg-white rounded-xl border border-gray-200 cursor-pointer hover:border-blue-300 transition">
+                    <input type="checkbox" class="mt-1 w-5 h-5 rounded border-gray-300 text-blue-500">
+                    <div class="w-10 h-10 bg-indigo-600 rounded-lg flex items-center justify-center text-white flex-shrink-0">
+                      <i class="fas fa-globe"></i>
+                    </div>
+                    <div class="flex-1">
+                      <div class="flex items-center gap-2">
+                        <span class="font-medium">Web Browser</span>
+                        <span class="text-xs bg-purple-100 text-purple-700 px-1.5 py-0.5 rounded">🌐 Open World</span>
+                      </div>
+                      <p class="text-sm text-gray-500 mt-0.5">Navigate, click, type, scroll on web pages</p>
+                    </div>
+                  </label>
+                  
+                  <!-- Delegate Tool -->
+                  <label class="flex items-start gap-3 p-3 bg-white rounded-xl border border-gray-200 cursor-pointer hover:border-blue-300 transition">
+                    <input type="checkbox" class="mt-1 w-5 h-5 rounded border-gray-300 text-blue-500">
+                    <div class="w-10 h-10 bg-purple-600 rounded-lg flex items-center justify-center text-white flex-shrink-0">
+                      <i class="fas fa-sitemap"></i>
+                    </div>
+                    <div class="flex-1">
+                      <div class="flex items-center gap-2">
+                        <span class="font-medium">Delegate (Sub-Agents)</span>
+                        <span class="text-xs bg-blue-100 text-blue-700 px-1.5 py-0.5 rounded">♻️ Idempotent</span>
+                      </div>
+                      <p class="text-sm text-gray-500 mt-0.5">Spawn and delegate tasks to sub-agents</p>
+                    </div>
+                  </label>
+                  
+                  <!-- Task Tool (Sync Sub-Agents) -->
+                  <label class="flex items-start gap-3 p-3 bg-white rounded-xl border border-gray-200 cursor-pointer hover:border-blue-300 transition">
+                    <input type="checkbox" class="mt-1 w-5 h-5 rounded border-gray-300 text-blue-500">
+                    <div class="w-10 h-10 bg-amber-600 rounded-lg flex items-center justify-center text-white flex-shrink-0">
+                      <i class="fas fa-project-diagram"></i>
+                    </div>
+                    <div class="flex-1">
+                      <div class="flex items-center gap-2">
+                        <span class="font-medium">Task (Sync Agents)</span>
+                        <span class="text-xs bg-blue-100 text-blue-700 px-1.5 py-0.5 rounded">♻️ Idempotent</span>
+                      </div>
+                      <p class="text-sm text-gray-500 mt-0.5">Synchronous sub-agent task delegation</p>
+                    </div>
+                  </label>
+                </div>
+              </div>
+              
+              <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">Assign Skills (Optional)</label>
+                <button onclick="showView('skill-selector')" class="w-full border-2 border-dashed border-gray-300 rounded-lg p-4 text-gray-500 hover:border-blue-400 hover:text-blue-500 transition">
+                  <i class="fas fa-plus mr-2"></i>
+                  Add Skills to Agent
+                </button>
+              </div>
+            </div>
+          </div>
+          
+          <!-- Footer -->
+          <div class="p-4 border-t bg-gray-50">
+            <button class="w-full bg-blue-500 text-white py-3 rounded-full font-medium hover:bg-blue-600 transition">
+              Create Agent
+            </button>
+          </div>
+        </div>
+        
+        <!-- View: Create Skill -->
+        <div id="view-create-skill" class="flex flex-col h-full view-transition hidden">
+          <div class="p-4 border-b bg-gray-50 flex items-center justify-between">
+            <div class="flex items-center gap-3">
+              <button onclick="showView('skill-selector')" class="text-blue-500 hover:text-blue-600">
+                <i class="fas fa-chevron-left text-xl"></i>
+              </button>
+              <h3 class="font-semibold text-lg">Create Skill</h3>
+            </div>
+            <button class="text-blue-500 font-medium">Save</button>
+          </div>
+          
+          <div class="flex-1 overflow-y-auto p-4">
+            <!-- Icon Picker -->
+            <div class="text-center mb-6">
+              <div class="w-16 h-16 bg-gradient-to-br from-amber-400 to-orange-500 rounded-2xl flex items-center justify-center text-3xl mx-auto mb-2 cursor-pointer hover:opacity-90 transition shadow-lg">
+                ⚡
+              </div>
+              <button class="text-blue-500 text-sm font-medium">Change Icon</button>
+              <div class="flex justify-center gap-2 mt-2">
+                <button class="w-8 h-8 bg-gray-100 rounded-lg flex items-center justify-center hover:bg-gray-200">🐍</button>
+                <button class="w-8 h-8 bg-gray-100 rounded-lg flex items-center justify-center hover:bg-gray-200">⚛️</button>
+                <button class="w-8 h-8 bg-gray-100 rounded-lg flex items-center justify-center hover:bg-gray-200">🔒</button>
+                <button class="w-8 h-8 bg-gray-100 rounded-lg flex items-center justify-center hover:bg-gray-200">📊</button>
+                <button class="w-8 h-8 bg-amber-100 rounded-lg flex items-center justify-center border-2 border-amber-400">⚡</button>
+                <button class="w-8 h-8 bg-gray-100 rounded-lg flex items-center justify-center hover:bg-gray-200">🎨</button>
+                <button class="w-8 h-8 bg-gray-100 rounded-lg flex items-center justify-center hover:bg-gray-200">🚀</button>
+              </div>
+            </div>
+            
+            <!-- Form Fields -->
+            <div class="space-y-4">
+              <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">Skill Name</label>
+                <input type="text" placeholder="e.g., Performance Optimizer" value="Performance Optimizer" class="w-full border border-gray-300 rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+              </div>
+              
+              <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">Description</label>
+                <input type="text" placeholder="Brief description shown in skill picker" value="Optimizes code for maximum performance and efficiency" class="w-full border border-gray-300 rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+              </div>
+              
+              <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">Category</label>
+                <select class="w-full border border-gray-300 rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white">
+                  <option>Coding</option>
+                  <option>Documentation</option>
+                  <option selected>Analysis</option>
+                  <option>Custom</option>
+                </select>
+              </div>
+              
+              <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">
+                  Trigger Keywords
+                  <span class="text-gray-400 font-normal">(Optional)</span>
+                </label>
+                <input type="text" placeholder="e.g., optimize, performance, speed" value="optimize, performance, speed, slow, fast" class="w-full border border-gray-300 rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                <p class="text-xs text-gray-500 mt-1">Skill activates automatically when these words appear in messages</p>
+              </div>
+              
+              <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">Skill Content (Prompt)</label>
+                <textarea rows="8" placeholder="Define the specialized knowledge and instructions..." class="w-full border border-gray-300 rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none font-mono text-sm">You are a Performance Optimization specialist. When reviewing code:
+
+## Analysis Approach
+1. Identify computational bottlenecks
+2. Check for O(n²) or worse algorithms
+3. Look for unnecessary memory allocations
+4. Review database query patterns
+
+## Optimization Strategies
+- Suggest caching opportunities
+- Recommend algorithm improvements
+- Identify parallelization options
+- Propose lazy loading patterns
+
+## Response Format
+Always provide:
+- Current complexity analysis
+- Specific optimization suggestions
+- Expected performance improvement
+- Trade-offs to consider</textarea>
+              </div>
+              
+              <!-- Preview -->
+              <div>
+                <label class="block text-sm font-medium text-gray-700 mb-2">Preview</label>
+                <div class="bg-gray-50 rounded-xl p-4 border">
+                  <div class="flex items-start gap-3">
+                    <div class="w-10 h-10 bg-gradient-to-br from-amber-400 to-orange-500 rounded-xl flex items-center justify-center text-xl shadow">
+                      ⚡
+                    </div>
+                    <div>
+                      <div class="font-medium">Performance Optimizer</div>
+                      <p class="text-sm text-gray-500">Optimizes code for maximum performance and efficiency</p>
+                      <div class="flex gap-1 mt-2">
+                        <span class="text-xs bg-amber-100 text-amber-700 px-2 py-0.5 rounded-full">optimize</span>
+                        <span class="text-xs bg-amber-100 text-amber-700 px-2 py-0.5 rounded-full">performance</span>
+                        <span class="text-xs bg-amber-100 text-amber-700 px-2 py-0.5 rounded-full">speed</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+          
+          <!-- Footer -->
+          <div class="p-4 border-t bg-gray-50">
+            <button class="w-full bg-blue-500 text-white py-3 rounded-full font-medium hover:bg-blue-600 transition">
+              Create Skill
+            </button>
+          </div>
+        </div>
+        
+      </div>
+    </div>
+    
+    <!-- Legend -->
+    <div class="mt-6 bg-white rounded-xl shadow-sm p-4">
+      <h3 class="font-semibold mb-3">🎨 Preview Legend</h3>
+      <div class="grid grid-cols-2 md:grid-cols-3 gap-4 text-sm">
+        <div class="flex items-center gap-2">
+          <div class="w-4 h-4 bg-blue-500 rounded"></div>
+          <span>User messages (right-aligned, blue)</span>
+        </div>
+        <div class="flex items-center gap-2">
+          <div class="w-4 h-4 bg-gray-200 rounded"></div>
+          <span>Agent messages (left-aligned, gray)</span>
+        </div>
+        <div class="flex items-center gap-2">
+          <div class="flex -space-x-1">
+            <div class="w-4 h-4 bg-green-500 rounded-full"></div>
+            <div class="w-4 h-4 bg-blue-500 rounded-full"></div>
+          </div>
+          <span>Multiple agents (colored avatars)</span>
+        </div>
+        <div class="flex items-center gap-2">
+          <div class="w-4 h-4 bg-white border rounded flex items-center justify-center text-xs">📦</div>
+          <span>Sub-agent results (nested cards)</span>
+        </div>
+        <div class="flex items-center gap-2">
+          <span class="text-xs bg-purple-100 text-purple-700 px-1.5 py-0.5 rounded">skill</span>
+          <span>Skill badges</span>
+        </div>
+        <div class="flex items-center gap-2">
+          <div class="flex gap-0.5">
+            <div class="w-2 h-2 bg-gray-400 rounded-full"></div>
+            <div class="w-2 h-2 bg-gray-400 rounded-full"></div>
+            <div class="w-2 h-2 bg-gray-400 rounded-full"></div>
+          </div>
+          <span>Typing indicator</span>
+        </div>
+      </div>
+    </div>
+    
+  </div>
+  
+  <!-- New Chat Modal -->
+  <div id="new-chat-modal" class="modal-overlay fixed inset-0 bg-black/50 flex items-center justify-center z-50 hidden">
+    <div class="modal-content bg-white rounded-2xl w-full max-w-md mx-4 overflow-hidden shadow-2xl">
+      <div class="p-4 border-b flex items-center justify-between">
+        <button onclick="hideModal('new-chat-modal')" class="text-blue-500">Cancel</button>
+        <h3 class="font-semibold">New Chat</h3>
+        <button class="text-blue-500 font-medium">Create</button>
+      </div>
+      <div class="p-4">
+        <p class="text-sm text-gray-500 mb-3">Select chat type:</p>
+        <div class="space-y-2">
+          <button onclick="hideModal('new-chat-modal'); showView('agent-selector')" class="w-full flex items-center gap-3 p-4 bg-gray-50 rounded-xl hover:bg-gray-100 transition text-left">
+            <div class="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center">
+              <i class="fas fa-user text-blue-500 text-xl"></i>
+            </div>
+            <div>
+              <div class="font-medium">Single Agent</div>
+              <p class="text-sm text-gray-500">Chat with one specialized agent</p>
+            </div>
+          </button>
+          
+          <button onclick="hideModal('new-chat-modal'); showView('agent-selector')" class="w-full flex items-center gap-3 p-4 bg-gray-50 rounded-xl hover:bg-gray-100 transition text-left">
+            <div class="w-12 h-12 bg-purple-100 rounded-full flex items-center justify-center">
+              <i class="fas fa-sitemap text-purple-500 text-xl"></i>
+            </div>
+            <div>
+              <div class="font-medium">Delegator + Sub-Agents</div>
+              <p class="text-sm text-gray-500">One agent that consults specialists</p>
+            </div>
+          </button>
+          
+          <button onclick="hideModal('new-chat-modal'); showView('agent-selector')" class="w-full flex items-center gap-3 p-4 bg-gray-50 rounded-xl hover:bg-gray-100 transition text-left">
+            <div class="w-12 h-12 bg-pink-100 rounded-full flex items-center justify-center">
+              <i class="fas fa-users text-pink-500 text-xl"></i>
+            </div>
+            <div>
+              <div class="font-medium">Group Chat</div>
+              <p class="text-sm text-gray-500">Multiple independent agents in one chat</p>
+            </div>
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+  
+  <script>
+    // View switching logic
+    function showView(viewId) {
+      // Hide all views
+      document.querySelectorAll('[id^="view-"]').forEach(view => {
+        view.classList.add('hidden');
+      });
+      
+      // Show selected view
+      document.getElementById('view-' + viewId).classList.remove('hidden');
+      
+      // Update tab styling
+      document.querySelectorAll('[id^="tab-"]').forEach(tab => {
+        tab.classList.remove('tab-active');
+        tab.classList.add('text-gray-500');
+      });
+      
+      const activeTab = document.getElementById('tab-' + viewId);
+      if (activeTab) {
+        activeTab.classList.add('tab-active');
+        activeTab.classList.remove('text-gray-500');
+      }
+    }
+    
+    // Modal logic
+    function showModal(modalId) {
+      document.getElementById(modalId).classList.remove('hidden');
+    }
+    
+    function hideModal(modalId) {
+      document.getElementById(modalId).classList.add('hidden');
+    }
+    
+    // Close modal on backdrop click
+    document.querySelectorAll('.modal-overlay').forEach(modal => {
+      modal.addEventListener('click', (e) => {
+        if (e.target === modal) {
+          modal.classList.add('hidden');
+        }
+      });
+    });
+  </script>
+  
+</body>
+</html>
