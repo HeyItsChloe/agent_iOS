@@ -1,8 +1,9 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { Modal, ModalFooter } from './Modal';
 import { useSettingsStore } from '../../stores/settingsStore';
-import { Moon, Sun, Monitor, Key, Server, Info } from 'lucide-react';
+import { Moon, Sun, Monitor, Key, Server, Info, CheckCircle, XCircle, Loader2 } from 'lucide-react';
 import { cn } from '../../utils/cn';
+import type { ModelConfig, LLMSettings, TestConnectionResult, SDKStatus } from '../../api/client';
 
 interface SettingsModalProps {
   onClose: () => void;
@@ -40,7 +41,7 @@ export function SettingsModal({ onClose }: SettingsModalProps) {
       {/* Tab content */}
       <div className="p-4">
         {activeTab === 'appearance' && <AppearanceSettings />}
-        {activeTab === 'llm' && <LLMSettings />}
+        {activeTab === 'llm' && <LLMSettingsPanel />}
         {activeTab === 'about' && <AboutSection />}
       </div>
 
@@ -152,21 +153,18 @@ function AppearanceSettings() {
   );
 }
 
-interface ModelConfig {
-  id: string;
-  name: string;
-  provider?: string;
-  base_url?: string;
-}
-
-function LLMSettings() {
+function LLMSettingsPanel() {
   const [model, setModel] = useState('');
   const [apiKey, setApiKey] = useState('');
   const [baseUrl, setBaseUrl] = useState('');
-  const [hasApiKey, setHasApiKey] = useState(false);
+  const [provider, setProvider] = useState('');
+  const [providerDisplayName, setProviderDisplayName] = useState('');
+  const [apiKeyHint, setApiKeyHint] = useState('');
+  const [hasApiKeyForModel, setHasApiKeyForModel] = useState(false);
   const [sdkAvailable, setSdkAvailable] = useState(false);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [testing, setTesting] = useState(false);
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
   const [availableModels, setAvailableModels] = useState<ModelConfig[]>([]);
 
@@ -179,16 +177,19 @@ function LLMSettings() {
     try {
       const response = await fetch('/api/settings/llm');
       if (response.ok) {
-        const data = await response.json();
+        const data: LLMSettings = await response.json();
         setModel(data.model || '');
-        setHasApiKey(data.has_api_key || false);
+        setProvider(data.provider || '');
+        setProviderDisplayName(data.provider_display_name || '');
+        setApiKeyHint(data.api_key_hint || '');
+        setHasApiKeyForModel(data.has_api_key_for_model || false);
         setBaseUrl(data.base_url || '');
         setAvailableModels(data.available_models || []);
       }
       
       const statusResponse = await fetch('/api/settings/sdk-status');
       if (statusResponse.ok) {
-        const status = await statusResponse.json();
+        const status: SDKStatus = await statusResponse.json();
         setSdkAvailable(status.sdk_available);
       }
     } catch (error) {
@@ -198,16 +199,40 @@ function LLMSettings() {
     }
   };
 
+  // Group models by provider for the dropdown
+  const groupedModels = useMemo(() => {
+    const groups: Record<string, ModelConfig[]> = {};
+    for (const m of availableModels) {
+      const p = m.provider || 'other';
+      if (!groups[p]) groups[p] = [];
+      groups[p].push(m);
+    }
+    return groups;
+  }, [availableModels]);
+
+  const providerOrder = ['openhands', 'anthropic', 'openai', 'other'];
+  const providerLabels: Record<string, string> = {
+    openhands: '── OpenHands Cloud ──',
+    anthropic: '── Anthropic (Direct) ──',
+    openai: '── OpenAI (Direct) ──',
+    other: '── Other ──',
+  };
+
   const handleModelChange = (newModel: string) => {
     setModel(newModel);
-    // Auto-set base URL for OpenHands models
+    // Find the model config
     const modelConfig = availableModels.find(m => m.id === newModel);
-    if (modelConfig?.base_url) {
-      setBaseUrl(modelConfig.base_url);
-    } else if (modelConfig?.provider !== 'openhands') {
-      // Clear base URL for direct provider models
-      setBaseUrl('');
+    if (modelConfig) {
+      setProvider(modelConfig.provider);
+      // Update base URL for OpenHands models
+      if (modelConfig.base_url) {
+        setBaseUrl(modelConfig.base_url);
+      } else if (modelConfig.provider !== 'openhands') {
+        setBaseUrl('');
+      }
     }
+    // Clear message when model changes
+    setMessage(null);
   };
 
   const handleSave = async () => {
@@ -226,8 +251,11 @@ function LLMSettings() {
       });
       
       if (response.ok) {
-        const data = await response.json();
-        setHasApiKey(data.has_api_key);
+        const data: LLMSettings = await response.json();
+        setHasApiKeyForModel(data.has_api_key_for_model);
+        setProvider(data.provider);
+        setProviderDisplayName(data.provider_display_name);
+        setApiKeyHint(data.api_key_hint);
         setApiKey(''); // Clear API key field
         setMessage({ type: 'success', text: 'Settings saved successfully!' });
       } else {
@@ -240,9 +268,43 @@ function LLMSettings() {
     }
   };
 
-  // Get current provider for API key hint
-  const currentModelConfig = availableModels.find(m => m.id === model);
-  const currentProvider = currentModelConfig?.provider || 'unknown';
+  const handleTestConnection = async () => {
+    setTesting(true);
+    setMessage(null);
+    
+    try {
+      const response = await fetch('/api/settings/test-connection', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          api_key: apiKey || undefined,
+        }),
+      });
+      
+      if (response.ok) {
+        const result: TestConnectionResult = await response.json();
+        if (result.success) {
+          setMessage({ type: 'success', text: result.message });
+        } else {
+          setMessage({ type: 'error', text: result.message });
+        }
+      } else {
+        throw new Error('Connection test failed');
+      }
+    } catch (error) {
+      setMessage({ type: 'error', text: 'Failed to test connection' });
+    } finally {
+      setTesting(false);
+    }
+  };
+
+  // Get dynamic label for API key field
+  const apiKeyLabel = useMemo(() => {
+    if (provider === 'openhands') return 'OpenHands API Key';
+    if (provider === 'anthropic') return 'Anthropic API Key';
+    if (provider === 'openai') return 'OpenAI API Key';
+    return 'API Key';
+  }, [provider]);
 
   if (loading) {
     return (
@@ -272,25 +334,29 @@ function LLMSettings() {
         </div>
       </div>
 
-      {/* API Key Status */}
+      {/* API Key Status for current model */}
       <div className={cn(
         'p-3 rounded-xl flex items-center gap-3',
-        hasApiKey ? 'bg-green-500/10' : 'bg-ios-secondary'
+        hasApiKeyForModel ? 'bg-green-500/10' : 'bg-ios-secondary'
       )}>
-        <Key size={20} className={hasApiKey ? 'text-green-500' : 'text-ios-text-secondary'} />
+        {hasApiKeyForModel ? (
+          <CheckCircle size={20} className="text-green-500" />
+        ) : (
+          <Key size={20} className="text-ios-text-secondary" />
+        )}
         <div>
-          <div className={cn('font-medium', hasApiKey ? 'text-green-600' : 'text-ios-text')}>
-            API Key {hasApiKey ? 'Configured' : 'Not Set'}
+          <div className={cn('font-medium', hasApiKeyForModel ? 'text-green-600' : 'text-ios-text')}>
+            {providerDisplayName} {hasApiKeyForModel ? 'Connected' : 'Not Configured'}
           </div>
           <div className="text-xs text-ios-text-secondary">
-            {hasApiKey 
-              ? 'LLM API key is configured'
-              : 'Set your API key below to enable AI responses'}
+            {hasApiKeyForModel 
+              ? `API key configured for ${providerDisplayName}`
+              : `Enter your ${providerDisplayName} API key below`}
           </div>
         </div>
       </div>
 
-      {/* Model selection */}
+      {/* Model selection with grouped options */}
       <div>
         <label className="block text-sm font-medium text-ios-text mb-1">Model</label>
         <select
@@ -298,59 +364,71 @@ function LLMSettings() {
           onChange={(e) => handleModelChange(e.target.value)}
           className="w-full px-4 py-2 bg-ios-secondary rounded-lg text-ios-text focus:outline-none focus:ring-2 focus:ring-ios-blue"
         >
-          {availableModels.length > 0 ? (
-            availableModels.map(m => (
-              <option key={m.id} value={m.id}>{m.name}</option>
-            ))
-          ) : (
-            <option value="">Loading models...</option>
-          )}
+          {providerOrder.map(p => {
+            const models = groupedModels[p];
+            if (!models || models.length === 0) return null;
+            return (
+              <optgroup key={p} label={providerLabels[p] || p}>
+                {models.map(m => (
+                  <option key={m.id} value={m.id}>{m.name}</option>
+                ))}
+              </optgroup>
+            );
+          })}
         </select>
-        {currentProvider && (
+        {provider && (
           <p className="text-xs text-ios-text-secondary mt-1">
-            Provider: {currentProvider === 'openhands' ? 'OpenHands (use OpenHands API key)' : currentProvider}
+            Provider: {providerDisplayName}
           </p>
         )}
       </div>
 
-      {/* API Key */}
+      {/* Dynamic API Key field */}
       <div>
         <label className="block text-sm font-medium text-ios-text mb-1">
-          API Key {hasApiKey && '(already set)'}
+          {apiKeyLabel} {hasApiKeyForModel && '(configured)'}
         </label>
-        <input
-          type="password"
-          value={apiKey}
-          onChange={(e) => setApiKey(e.target.value)}
-          placeholder={hasApiKey ? '••••••••' : 'Enter your API key'}
-          className="w-full px-4 py-2 bg-ios-secondary rounded-lg text-ios-text placeholder-ios-text-secondary focus:outline-none focus:ring-2 focus:ring-ios-blue"
-        />
+        <div className="flex gap-2">
+          <input
+            type="password"
+            value={apiKey}
+            onChange={(e) => setApiKey(e.target.value)}
+            placeholder={hasApiKeyForModel ? '••••••••••••••••' : `Enter your ${apiKeyLabel}`}
+            className="flex-1 px-4 py-2 bg-ios-secondary rounded-lg text-ios-text placeholder-ios-text-secondary focus:outline-none focus:ring-2 focus:ring-ios-blue"
+          />
+          <button
+            onClick={handleTestConnection}
+            disabled={testing || (!apiKey && !hasApiKeyForModel)}
+            className={cn(
+              'px-3 py-2 rounded-lg text-sm font-medium transition-colors whitespace-nowrap',
+              testing || (!apiKey && !hasApiKeyForModel)
+                ? 'bg-ios-secondary text-ios-text-secondary cursor-not-allowed'
+                : 'bg-ios-secondary text-ios-blue hover:bg-ios-blue/10'
+            )}
+          >
+            {testing ? <Loader2 size={16} className="animate-spin" /> : 'Test'}
+          </button>
+        </div>
         <p className="text-xs text-ios-text-secondary mt-1">
-          {currentProvider === 'openhands' 
-            ? 'Use your OpenHands API key from app.all-hands.dev'
-            : currentProvider === 'anthropic'
-            ? 'Use your Anthropic API key from console.anthropic.com'
-            : currentProvider === 'openai'
-            ? 'Use your OpenAI API key from platform.openai.com'
-            : 'Leave blank to keep current key'}
+          {apiKeyHint || 'Enter your API key'}
         </p>
       </div>
 
       {/* Base URL (auto-set for OpenHands, editable for others) */}
       <div>
         <label className="block text-sm font-medium text-ios-text mb-1">
-          Base URL {currentProvider === 'openhands' ? '(auto-configured)' : '(optional)'}
+          Base URL {provider === 'openhands' ? '(auto-configured)' : '(optional)'}
         </label>
         <input
           type="text"
           value={baseUrl}
           onChange={(e) => setBaseUrl(e.target.value)}
-          placeholder={currentProvider === 'openhands' ? 'https://app.all-hands.dev' : 'Leave empty for default'}
+          placeholder={provider === 'openhands' ? 'https://app.all-hands.dev' : 'Leave empty for default'}
           className="w-full px-4 py-2 bg-ios-secondary rounded-lg text-ios-text placeholder-ios-text-secondary focus:outline-none focus:ring-2 focus:ring-ios-blue"
-          readOnly={currentProvider === 'openhands'}
+          readOnly={provider === 'openhands'}
         />
         <p className="text-xs text-ios-text-secondary mt-1">
-          {currentProvider === 'openhands' 
+          {provider === 'openhands' 
             ? 'Automatically set for OpenHands models'
             : 'For custom API endpoints or self-hosted models'}
         </p>
@@ -359,9 +437,10 @@ function LLMSettings() {
       {/* Message */}
       {message && (
         <div className={cn(
-          'p-3 rounded-lg text-sm',
+          'p-3 rounded-lg text-sm flex items-center gap-2',
           message.type === 'success' ? 'bg-green-500/10 text-green-600' : 'bg-red-500/10 text-red-600'
         )}>
+          {message.type === 'success' ? <CheckCircle size={16} /> : <XCircle size={16} />}
           {message.text}
         </div>
       )}

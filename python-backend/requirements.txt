@@ -5,9 +5,13 @@ websockets>=12.0
 pydantic>=2.5.0
 pydantic-settings>=2.0.0
 
-# OpenHands SDK (optional - app works without it in mock mode)
-# Install separately if you have access:
-# pip install openhands-sdk openhands-tools
+# OpenHands SDK - for AI agent functionality
+# These packages enable full LLM integration and agent capabilities
+openhands-sdk>=0.1.0
+openhands-tools>=0.1.0
+
+# HTTP client for API connections (OpenHands Cloud, provider testing)
+httpx>=0.26.0
 
 # Async support
 asyncio-throttle>=1.0.0
@@ -19,4 +23,3 @@ python-dotenv>=1.0.0
 # Testing
 pytest>=8.0.0
 pytest-asyncio>=0.23.0
-httpx>=0.26.0

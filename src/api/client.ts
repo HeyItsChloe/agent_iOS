@@ -157,21 +157,64 @@ export const skillsApi = {
 };
 
 // Settings API
+export interface ModelConfig {
+  id: string;
+  name: string;
+  provider: string;
+  base_url?: string;
+  description?: string;
+}
+
+export interface LLMSettings {
+  model: string;
+  provider: string;
+  provider_display_name: string;
+  has_api_key: boolean;
+  has_api_key_for_model: boolean;
+  base_url: string | null;
+  api_key_hint: string;
+  available_models: ModelConfig[];
+}
+
+export interface TestConnectionResult {
+  success: boolean;
+  provider: string;
+  message: string;
+  details?: Record<string, any>;
+}
+
+export interface ProviderStatus {
+  name: string;
+  configured: boolean;
+  base_url?: string;
+}
+
+export interface SDKStatus {
+  sdk_available: boolean;
+  sdk_version: string;
+  tools_available: boolean;
+  llm_configured: boolean;
+  providers: Record<string, ProviderStatus>;
+}
+
 export const settingsApi = {
-  getLLM: () => request<{
-    model: string;
-    has_api_key: boolean;
-    base_url: string | null;
-    available_models: Array<{ id: string; name: string }>;
-  }>('/settings/llm'),
+  getLLM: () => request<LLMSettings>('/settings/llm'),
   
   updateLLM: (data: {
     model?: string;
     api_key?: string;
     base_url?: string;
-  }) => request<any>('/settings/llm', {
+  }) => request<LLMSettings>('/settings/llm', {
     method: 'POST',
     body: JSON.stringify(data),
+  }),
+  
+  testConnection: (data?: {
+    provider?: string;
+    api_key?: string;
+  }) => request<TestConnectionResult>('/settings/test-connection', {
+    method: 'POST',
+    body: JSON.stringify(data || {}),
   }),
   
   getApp: () => request<{
@@ -180,12 +223,7 @@ export const settingsApi = {
     debug: boolean;
   }>('/settings/app'),
   
-  getSDKStatus: () => request<{
-    sdk_available: boolean;
-    sdk_version: string;
-    tools_available: boolean;
-    llm_configured: boolean;
-  }>('/settings/sdk-status'),
+  getSDKStatus: () => request<SDKStatus>('/settings/sdk-status'),
 };
 
 // Health API

@@ -4,7 +4,13 @@ from typing import Optional
 
 from pydantic import SecretStr
 
-from app.config import settings
+from app.config import (
+    settings,
+    PROVIDER_OPENHANDS,
+    PROVIDER_ANTHROPIC,
+    PROVIDER_OPENAI,
+    OPENHANDS_BASE_URL,
+)
 
 try:
     from openhands.sdk import LLM
@@ -12,6 +18,20 @@ try:
 except ImportError:
     SDK_AVAILABLE = False
     LLM = None
+
+
+def get_provider_from_model(model: str) -> str:
+    """Extract provider from model string.
+    
+    Args:
+        model: Model string like "openhands/claude-sonnet-4-5-20250929"
+    
+    Returns:
+        Provider string: "openhands", "anthropic", "openai", etc.
+    """
+    if "/" in model:
+        return model.split("/")[0].lower()
+    return PROVIDER_OPENAI  # Default fallback
 
 
 def create_llm(
@@ -22,10 +42,15 @@ def create_llm(
 ) -> Optional["LLM"]:
     """Create an LLM instance with the given configuration.
     
+    Automatically routes to the correct provider based on model prefix:
+    - openhands/* -> Uses OpenHands API key and OpenHands base URL
+    - anthropic/* -> Uses Anthropic API key
+    - openai/* -> Uses OpenAI API key
+    
     Args:
-        model: Model name (e.g., "anthropic/claude-sonnet-4-5-20250929")
-        api_key: API key for the LLM provider
-        base_url: Optional base URL for the LLM API
+        model: Model name (e.g., "openhands/claude-sonnet-4-5-20250929")
+        api_key: Override API key (uses provider-specific key from settings if not provided)
+        base_url: Override base URL (auto-set for OpenHands models if not provided)
         usage_id: Identifier for usage tracking
     
     Returns:
@@ -34,17 +59,21 @@ def create_llm(
     if not SDK_AVAILABLE:
         return None
     
-    # Use provided values or fall back to settings
+    # Use provided model or fall back to settings
     model = model or settings.llm_model
-    base_url = base_url or settings.llm_base_url
+    provider = get_provider_from_model(model)
     
-    # Get API key
+    # Get API key - use provided, then provider-specific, then legacy fallback
     if api_key:
         secret_key = SecretStr(api_key)
-    elif settings.llm_api_key:
-        secret_key = settings.llm_api_key
     else:
-        return None
+        secret_key = settings.get_api_key_for_provider(provider)
+        if not secret_key:
+            return None
+    
+    # Get base URL - use provided, then provider-specific
+    if base_url is None:
+        base_url = settings.get_base_url_for_model(model)
     
     return LLM(
         model=model,
@@ -54,19 +83,94 @@ def create_llm(
     )
 
 
-def get_available_models() -> list[dict[str, str]]:
-    """Get list of available models.
+def create_llm_for_provider(
+    provider: str,
+    model_suffix: str,
+    api_key: Optional[str] = None,
+    usage_id: str = "agent",
+) -> Optional["LLM"]:
+    """Create an LLM instance for a specific provider.
+    
+    Args:
+        provider: Provider name ("openhands", "anthropic", "openai")
+        model_suffix: Model name without provider prefix (e.g., "claude-sonnet-4-5-20250929")
+        api_key: Override API key
+        usage_id: Identifier for usage tracking
     
     Returns:
-        List of model configurations with id, name, and optional base_url
+        LLM instance if SDK is available and configured, None otherwise
+    """
+    model = f"{provider}/{model_suffix}"
+    return create_llm(model=model, api_key=api_key, usage_id=usage_id)
+
+
+def get_available_models() -> list[dict[str, str]]:
+    """Get list of available models grouped by provider.
+    
+    Returns:
+        List of model configurations with id, name, provider, and optional base_url.
+        Models are ordered with OpenHands first (recommended), then direct providers.
     """
     return [
-        # Direct provider APIs (use your own API keys)
-        {"id": "anthropic/claude-sonnet-4-5-20250929", "name": "Claude Sonnet 4.5 (Anthropic)", "provider": "anthropic"},
-        {"id": "anthropic/claude-haiku-3-5-20241022", "name": "Claude Haiku 3.5 (Anthropic)", "provider": "anthropic"},
-        {"id": "openai/gpt-4o", "name": "GPT-4o (OpenAI)", "provider": "openai"},
-        {"id": "openai/gpt-4o-mini", "name": "GPT-4o Mini (OpenAI)", "provider": "openai"},
-        # OpenHands API (use OpenHands API key)
-        {"id": "openhands/claude-sonnet-4-5-20250929", "name": "Claude Sonnet 4.5 (OpenHands)", "provider": "openhands", "base_url": "https://app.all-hands.dev"},
-        {"id": "openhands/claude-haiku-3-5-20241022", "name": "Claude Haiku 3.5 (OpenHands)", "provider": "openhands", "base_url": "https://app.all-hands.dev"},
+        # OpenHands Cloud (recommended - use OpenHands API key)
+        {
+            "id": "openhands/claude-sonnet-4-5-20250929",
+            "name": "Claude Sonnet 4.5 (OpenHands)",
+            "provider": PROVIDER_OPENHANDS,
+            "base_url": OPENHANDS_BASE_URL,
+            "description": "Most capable model via OpenHands Cloud",
+        },
+        {
+            "id": "openhands/claude-haiku-3-5-20241022",
+            "name": "Claude Haiku 3.5 (OpenHands)",
+            "provider": PROVIDER_OPENHANDS,
+            "base_url": OPENHANDS_BASE_URL,
+            "description": "Fast and efficient via OpenHands Cloud",
+        },
+        # Direct Anthropic API (use Anthropic API key)
+        {
+            "id": "anthropic/claude-sonnet-4-5-20250929",
+            "name": "Claude Sonnet 4.5 (Direct)",
+            "provider": PROVIDER_ANTHROPIC,
+            "description": "Direct Anthropic API access",
+        },
+        {
+            "id": "anthropic/claude-haiku-3-5-20241022",
+            "name": "Claude Haiku 3.5 (Direct)",
+            "provider": PROVIDER_ANTHROPIC,
+            "description": "Direct Anthropic API access",
+        },
+        # Direct OpenAI API (use OpenAI API key)
+        {
+            "id": "openai/gpt-4o",
+            "name": "GPT-4o (Direct)",
+            "provider": PROVIDER_OPENAI,
+            "description": "Direct OpenAI API access",
+        },
+        {
+            "id": "openai/gpt-4o-mini",
+            "name": "GPT-4o Mini (Direct)",
+            "provider": PROVIDER_OPENAI,
+            "description": "Fast and affordable OpenAI model",
+        },
     ]
+
+
+def get_provider_display_name(provider: str) -> str:
+    """Get human-readable display name for a provider."""
+    names = {
+        PROVIDER_OPENHANDS: "OpenHands Cloud",
+        PROVIDER_ANTHROPIC: "Anthropic",
+        PROVIDER_OPENAI: "OpenAI",
+    }
+    return names.get(provider, provider.title())
+
+
+def get_api_key_hint(provider: str) -> str:
+    """Get hint text for where to obtain API key for a provider."""
+    hints = {
+        PROVIDER_OPENHANDS: "Get your API key at app.all-hands.dev",
+        PROVIDER_ANTHROPIC: "Get your API key at console.anthropic.com",
+        PROVIDER_OPENAI: "Get your API key at platform.openai.com",
+    }
+    return hints.get(provider, "Enter your API key")

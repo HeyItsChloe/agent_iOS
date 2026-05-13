@@ -258,9 +258,41 @@ docker run -p 8765:8765 ios-agent-messenger
 | Variable | Description | Default |
 |----------|-------------|---------|
 | `PORT` | Backend server port | `8765` |
-| `LLM_MODEL` | Default LLM model | `gpt-4` |
-| `LLM_API_KEY` | LLM API key | - |
+| `LLM_MODEL` | Default LLM model | `openhands/claude-sonnet-4-5-20250929` |
 | `OPENHANDS_API_KEY` | OpenHands Cloud API key | - |
+| `ANTHROPIC_API_KEY` | Anthropic API key (for direct access) | - |
+| `OPENAI_API_KEY` | OpenAI API key (for direct access) | - |
+| `LLM_API_KEY` | Legacy fallback API key | - |
+
+### LLM Configuration
+
+The app supports multiple LLM providers. The model name prefix determines which API key is used:
+
+| Model Prefix | Provider | API Key Variable | Example Model |
+|--------------|----------|------------------|---------------|
+| `openhands/` | OpenHands Cloud | `OPENHANDS_API_KEY` | `openhands/claude-sonnet-4-5-20250929` |
+| `anthropic/` | Anthropic (Direct) | `ANTHROPIC_API_KEY` | `anthropic/claude-sonnet-4-5-20250929` |
+| `openai/` | OpenAI (Direct) | `OPENAI_API_KEY` | `openai/gpt-4o` |
+
+**Recommended:** Use OpenHands Cloud models (`openhands/*`) with your OpenHands API key from [app.all-hands.dev](https://app.all-hands.dev). This provides the simplest setup and access to all supported models.
+
+**Direct Provider Access:** If you prefer to use your own provider API keys, select models with `anthropic/` or `openai/` prefixes and configure the corresponding API key.
+
+#### Example `.env` file
+
+```bash
+# Option 1: OpenHands Cloud (recommended)
+LLM_MODEL=openhands/claude-sonnet-4-5-20250929
+OPENHANDS_API_KEY=your-openhands-api-key
+
+# Option 2: Direct Anthropic access
+# LLM_MODEL=anthropic/claude-sonnet-4-5-20250929
+# ANTHROPIC_API_KEY=sk-ant-your-anthropic-key
+
+# Option 3: Direct OpenAI access
+# LLM_MODEL=openai/gpt-4o
+# OPENAI_API_KEY=sk-your-openai-key
+```
 
 ---
 
