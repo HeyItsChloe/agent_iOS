@@ -244,9 +244,9 @@ class ConversationService:
         websockets = self._websockets.get(conversation_id, [])
         for ws in websockets:
             try:
-                await ws.send_json(event.model_dump())
-            except Exception:
-                pass
+                await ws.send_json(event.model_dump(mode='json'))
+            except Exception as e:
+                print(f"[WS] Failed to broadcast event: {e}")
     
     async def _send_error(self, websocket: WebSocket, conversation_id: str, message: str):
         """Send an error event."""
@@ -255,7 +255,7 @@ class ConversationService:
             error_code="CONVERSATION_ERROR",
             error_message=message,
         )
-        await websocket.send_json(error.model_dump())
+        await websocket.send_json(error.model_dump(mode='json'))
     
     async def _run_sdk_conversation(
         self,
