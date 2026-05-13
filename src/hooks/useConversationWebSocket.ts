@@ -201,16 +201,88 @@ export function useConversationWebSocket(
 
   // Connect when conversation changes
   useEffect(() => {
-    if (conversationId) {
-      connect();
-    } else {
-      disconnect();
+    if (!conversationId) {
+      // No conversation, ensure disconnected
+      if (wsRef.current) {
+        wsRef.current.close(1000, 'No conversation');
+        wsRef.current = null;
+      }
+      setConnected(false);
+      setTypingAgents([]);
+      return;
     }
 
-    return () => {
-      disconnect();
+    // Clear any pending reconnect
+    if (reconnectTimeoutRef.current) {
+      clearTimeout(reconnectTimeoutRef.current);
+      reconnectTimeoutRef.current = null;
+    }
+
+    // Close existing connection if different conversation
+    if (wsRef.current) {
+      wsRef.current.close(1000, 'Switching conversation');
+      wsRef.current = null;
+    }
+
+    setConnecting(true);
+    setError(null);
+
+    // Determine WebSocket URL
+    const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+    const host = window.location.host;
+    const wsUrl = `${protocol}//${host}/ws/conversations/${conversationId}/stream`;
+
+    const ws = new WebSocket(wsUrl);
+    wsRef.current = ws;
+
+    ws.onopen = () => {
+      console.log(`[WS] Connected to conversation ${conversationId}`);
+      setConnected(true);
+      setConnecting(false);
+      setError(null);
     };
-  }, [conversationId, connect, disconnect]);
+
+    ws.onclose = (event) => {
+      console.log(`[WS] Disconnected: ${event.code} ${event.reason}`);
+      setConnected(false);
+      setConnecting(false);
+      
+      // Only reconnect if this is still our active WebSocket and it wasn't intentional
+      if (wsRef.current === ws && event.code !== 1000) {
+        reconnectTimeoutRef.current = setTimeout(() => {
+          console.log('[WS] Attempting reconnect...');
+          // Trigger reconnect by calling connect
+          connect();
+        }, 3000);
+      }
+    };
+
+    ws.onerror = (event) => {
+      console.error('[WS] Error:', event);
+      setError('WebSocket connection error');
+    };
+
+    ws.onmessage = (event) => {
+      try {
+        const data = JSON.parse(event.data);
+        handleEvent(data);
+      } catch (e) {
+        console.error('[WS] Failed to parse message:', e);
+      }
+    };
+
+    return () => {
+      // Cleanup on unmount or conversation change
+      if (reconnectTimeoutRef.current) {
+        clearTimeout(reconnectTimeoutRef.current);
+        reconnectTimeoutRef.current = null;
+      }
+      if (ws.readyState === WebSocket.OPEN || ws.readyState === WebSocket.CONNECTING) {
+        ws.close(1000, 'Component cleanup');
+      }
+    };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [conversationId]);
 
   // Ping to keep connection alive
   useEffect(() => {
