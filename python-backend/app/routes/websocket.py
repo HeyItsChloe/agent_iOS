@@ -45,7 +45,7 @@ async def conversation_stream(websocket: WebSocket, conversation_id: str):
         await websocket.send_json({
             "type": "connected",
             "conversation_id": conversation_id,
-            "conversation": conversation,
+            "conversation": conversation.model_dump() if hasattr(conversation, 'model_dump') else conversation,
         })
         
         # Listen for messages from client
@@ -80,7 +80,7 @@ async def conversation_stream(websocket: WebSocket, conversation_id: str):
                     if conv:
                         await websocket.send_json({
                             "type": "state",
-                            "conversation": conv,
+                            "conversation": conv.model_dump() if hasattr(conv, 'model_dump') else conv,
                         })
                 
             except json.JSONDecodeError:
