@@ -1,0 +1,289 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* iOS-style base styles */
+@layer base {
+  :root {
+    /* iOS System Colors */
+    --ios-blue: #007AFF;
+    --ios-green: #34C759;
+    --ios-red: #FF3B30;
+    --ios-orange: #FF9500;
+    --ios-yellow: #FFCC00;
+    --ios-purple: #AF52DE;
+    --ios-pink: #FF2D55;
+    --ios-teal: #5AC8FA;
+    --ios-indigo: #5856D6;
+    
+    /* Light mode grays */
+    --ios-gray-1: #8E8E93;
+    --ios-gray-2: #AEAEB2;
+    --ios-gray-3: #C7C7CC;
+    --ios-gray-4: #D1D1D6;
+    --ios-gray-5: #E5E5EA;
+    --ios-gray-6: #F2F2F7;
+    
+    /* Backgrounds */
+    --bg-primary: #FFFFFF;
+    --bg-secondary: #F2F2F7;
+    --bg-tertiary: #FFFFFF;
+    
+    /* Text */
+    --text-primary: #000000;
+    --text-secondary: #3C3C43;
+    --text-tertiary: #8E8E93;
+    
+    /* Bubbles */
+    --bubble-user: #007AFF;
+    --bubble-agent: #E5E5EA;
+    --bubble-user-text: #FFFFFF;
+    --bubble-agent-text: #000000;
+  }
+  
+  .dark {
+    /* Dark mode grays */
+    --ios-gray-1: #8E8E93;
+    --ios-gray-2: #636366;
+    --ios-gray-3: #48484A;
+    --ios-gray-4: #3A3A3C;
+    --ios-gray-5: #2C2C2E;
+    --ios-gray-6: #1C1C1E;
+    
+    /* Backgrounds */
+    --bg-primary: #000000;
+    --bg-secondary: #1C1C1E;
+    --bg-tertiary: #2C2C2E;
+    
+    /* Text */
+    --text-primary: #FFFFFF;
+    --text-secondary: #EBEBF5;
+    --text-tertiary: #8E8E93;
+    
+    /* Bubbles */
+    --bubble-user: #007AFF;
+    --bubble-agent: #3A3A3C;
+    --bubble-user-text: #FFFFFF;
+    --bubble-agent-text: #FFFFFF;
+  }
+  
+  html {
+    font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'SF Pro Display', 
+                 'Helvetica Neue', Helvetica, Arial, sans-serif;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+  
+  body {
+    @apply bg-ios-gray-100 text-gray-900;
+    @apply dark:bg-ios-gray-950 dark:text-white;
+  }
+  
+  /* Custom scrollbar */
+  ::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+  
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  
+  ::-webkit-scrollbar-thumb {
+    @apply bg-ios-gray-300 dark:bg-ios-gray-700 rounded-full;
+  }
+  
+  ::-webkit-scrollbar-thumb:hover {
+    @apply bg-ios-gray-400 dark:bg-ios-gray-600;
+  }
+}
+
+@layer components {
+  /* Message bubble base */
+  .bubble {
+    @apply px-4 py-2 rounded-bubble max-w-[75%];
+    word-wrap: break-word;
+  }
+  
+  .bubble-user {
+    @apply bg-ios-blue text-white rounded-br-bubble-tail;
+  }
+  
+  .bubble-agent {
+    @apply bg-ios-gray-200 text-gray-900 rounded-bl-bubble-tail;
+    @apply dark:bg-ios-gray-800 dark:text-white;
+  }
+  
+  /* iOS-style button */
+  .btn-ios {
+    @apply px-4 py-2 rounded-lg font-medium transition-all duration-150;
+    @apply active:scale-95;
+  }
+  
+  .btn-ios-primary {
+    @apply btn-ios bg-ios-blue text-white;
+    @apply hover:bg-blue-600 active:bg-blue-700;
+  }
+  
+  .btn-ios-secondary {
+    @apply btn-ios bg-ios-gray-200 text-gray-900;
+    @apply dark:bg-ios-gray-800 dark:text-white;
+    @apply hover:bg-ios-gray-300 dark:hover:bg-ios-gray-700;
+  }
+  
+  /* iOS-style input */
+  .input-ios {
+    @apply w-full px-4 py-2 rounded-lg;
+    @apply bg-ios-gray-200 dark:bg-ios-gray-800;
+    @apply text-gray-900 dark:text-white;
+    @apply placeholder-ios-gray-500;
+    @apply focus:outline-none focus:ring-2 focus:ring-ios-blue;
+    @apply transition-all duration-150;
+  }
+  
+  /* iOS-style card */
+  .card-ios {
+    @apply bg-white dark:bg-ios-gray-900 rounded-xl;
+    @apply shadow-ios;
+  }
+  
+  /* Typing indicator animation */
+  .typing-dot {
+    @apply w-2 h-2 bg-ios-gray-400 rounded-full;
+    animation: typingBounce 1.4s infinite ease-in-out;
+  }
+  
+  .typing-dot:nth-child(1) { animation-delay: 0s; }
+  .typing-dot:nth-child(2) { animation-delay: 0.2s; }
+  .typing-dot:nth-child(3) { animation-delay: 0.4s; }
+  
+  /* Avatar styles */
+  .avatar {
+    @apply flex items-center justify-center rounded-full font-medium;
+  }
+  
+  .avatar-sm {
+    @apply w-8 h-8 text-sm;
+  }
+  
+  .avatar-md {
+    @apply w-10 h-10 text-base;
+  }
+  
+  .avatar-lg {
+    @apply w-12 h-12 text-lg;
+  }
+  
+  /* Badge styles */
+  .badge {
+    @apply inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium;
+  }
+  
+  .badge-blue {
+    @apply bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-300;
+  }
+  
+  .badge-green {
+    @apply bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300;
+  }
+  
+  .badge-orange {
+    @apply bg-orange-100 text-orange-700 dark:bg-orange-900 dark:text-orange-300;
+  }
+  
+  .badge-purple {
+    @apply bg-purple-100 text-purple-700 dark:bg-purple-900 dark:text-purple-300;
+  }
+  
+  .badge-gray {
+    @apply bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300;
+  }
+}
+
+@layer utilities {
+  /* Gradient backgrounds for avatars */
+  .gradient-blue {
+    @apply bg-gradient-to-br from-blue-500 to-cyan-500;
+  }
+  
+  .gradient-green {
+    @apply bg-gradient-to-br from-green-500 to-emerald-500;
+  }
+  
+  .gradient-purple {
+    @apply bg-gradient-to-br from-purple-500 to-pink-500;
+  }
+  
+  .gradient-orange {
+    @apply bg-gradient-to-br from-orange-500 to-red-500;
+  }
+  
+  /* Safe area insets for macOS */
+  .safe-top {
+    padding-top: env(safe-area-inset-top, 0);
+  }
+  
+  .safe-bottom {
+    padding-bottom: env(safe-area-inset-bottom, 0);
+  }
+  
+  /* Titlebar drag region for Electron */
+  .titlebar-drag {
+    -webkit-app-region: drag;
+  }
+  
+  .titlebar-no-drag {
+    -webkit-app-region: no-drag;
+  }
+}
+
+/* Keyframes */
+@keyframes typingBounce {
+  0%, 60%, 100% {
+    transform: translateY(0);
+  }
+  30% {
+    transform: translateY(-4px);
+  }
+}
+
+/* Transition classes for modals */
+.modal-enter {
+  opacity: 0;
+}
+
+.modal-enter-active {
+  opacity: 1;
+  transition: opacity 200ms ease-out;
+}
+
+.modal-exit {
+  opacity: 1;
+}
+
+.modal-exit-active {
+  opacity: 0;
+  transition: opacity 150ms ease-in;
+}
+
+.modal-content-enter {
+  transform: translateY(20px);
+  opacity: 0;
+}
+
+.modal-content-enter-active {
+  transform: translateY(0);
+  opacity: 1;
+  transition: transform 300ms ease-out, opacity 200ms ease-out;
+}
+
+.modal-content-exit {
+  transform: translateY(0);
+  opacity: 1;
+}
+
+.modal-content-exit-active {
+  transform: translateY(20px);
+  opacity: 0;
+  transition: transform 200ms ease-in, opacity 150ms ease-in;
+}
