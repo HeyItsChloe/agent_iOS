@@ -345,13 +345,14 @@ class ConversationService:
         api_key = settings.openhands_api_key.get_secret_value()
         
         # Send typing indicator
-        typing_event = TypingEvent(
-            conversation_id=conversation.id,
-            agent_id=agent_id,
-            agent_name=agent_model.name,
-            is_typing=True,
-        )
-        await self._broadcast_event(conversation.id, typing_event.model_dump(mode='json'))
+        typing_event_data = {
+            "type": "typing",
+            "conversation_id": conversation.id,
+            "agent_id": agent_id,
+            "agent_name": agent_model.name,
+            "is_typing": True,
+        }
+        await self._broadcast_event(conversation.id, typing_event_data)
         
         try:
             # Run on OpenHands Cloud
@@ -364,8 +365,8 @@ class ConversationService:
             )
             
             # Stop typing indicator
-            typing_event.is_typing = False
-            await self._broadcast_event(conversation.id, typing_event.model_dump(mode='json'))
+            typing_event_data["is_typing"] = False
+            await self._broadcast_event(conversation.id, typing_event_data)
             
             # Create response message
             response_content = response_text if response_text else f"Conversation completed. View at: https://app.all-hands.dev/conversations/{cloud_conv_id}"
@@ -393,15 +394,12 @@ class ConversationService:
             
         except Exception as e:
             print(f"[OpenHands Cloud] Error: {e}")
+            import traceback
+            traceback.print_exc()
             
             # Stop typing indicator
-            typing_event = TypingEvent(
-                conversation_id=conversation.id,
-                agent_id=agent_id,
-                agent_name=agent_model.name,
-                is_typing=False,
-            )
-            await self._broadcast_event(conversation.id, typing_event.model_dump(mode='json'))
+            typing_event_data["is_typing"] = False
+            await self._broadcast_event(conversation.id, typing_event_data)
             
             return await self._generate_fallback_response(
                 conversation, user_content, agent_id,

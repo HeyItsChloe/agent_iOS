@@ -74,6 +74,9 @@ class OpenHandsCloudClient:
             raise Exception(f"Failed to get start task: {response.status_code}")
         
         data = response.json()
+        # Handle both list and dict responses
+        if isinstance(data, list):
+            return data[0] if data else {}
         items = data.get("items", [])
         return items[0] if items else {}
     
@@ -90,6 +93,9 @@ class OpenHandsCloudClient:
             raise Exception(f"Failed to get conversation: {response.status_code}")
         
         data = response.json()
+        # Handle both list and dict responses
+        if isinstance(data, list):
+            return data[0] if data else {}
         items = data.get("items", [])
         return items[0] if items else {}
     
@@ -105,7 +111,11 @@ class OpenHandsCloudClient:
         if response.status_code != 200:
             raise Exception(f"Failed to get events: {response.status_code}")
         
-        return response.json().get("items", [])
+        data = response.json()
+        # Handle both list and dict responses
+        if isinstance(data, list):
+            return data
+        return data.get("items", [])
     
     def wait_for_completion(self, conversation_id: str, timeout: float = 300.0) -> dict:
         """Wait for conversation to complete."""
