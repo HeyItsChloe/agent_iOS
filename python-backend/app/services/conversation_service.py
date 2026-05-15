@@ -185,6 +185,7 @@ class ConversationService:
                 message_id=user_message.id,
                 content=content,
                 sender="user",
+                timestamp=user_message.timestamp,
             ),
         )
         
