@@ -470,23 +470,25 @@ ipcMain.handle('tool:open-terminal-vscode', async () => {
     if (process.platform === 'darwin') {
       // macOS - Use open -a to launch VS Code (works without PATH issues)
       // Then use AppleScript to wait for window and send keystrokes
+      // Note: key code 50 is backtick on US keyboard layout
+      const escapedDir = workspaceDir.replace(/"/g, '\\"');
       const script = `
-        do shell script "open -a 'Visual Studio Code' '${workspaceDir.replace(/'/g, "'\\''")}'"
-        tell application "Visual Studio Code"
-          activate
-          repeat until (count of windows) > 0
-            delay 0.1
-          end repeat
-        end tell
-        delay 0.5
-        tell application "System Events"
-          keystroke "\`" using control down
-          delay 0.3
-          keystroke "openhands"
-          keystroke return
-        end tell
-      `;
-      execSync(`osascript -e '${script}'`);
+do shell script "open -a \\"Visual Studio Code\\" \\"${escapedDir}\\""
+tell application "Visual Studio Code"
+  activate
+  repeat until (count of windows) > 0
+    delay 0.1
+  end repeat
+end tell
+delay 0.5
+tell application "System Events"
+  key code 50 using control down
+  delay 0.3
+  keystroke "openhands"
+  keystroke return
+end tell
+`;
+      execSync(`osascript -e "${script.replace(/"/g, '\\"').replace(/\n/g, '\\n')}"`);
     } else if (process.platform === 'win32') {
       // Windows - Try to find VS Code in common locations
       const vscodePaths = [
