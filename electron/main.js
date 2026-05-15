@@ -469,19 +469,17 @@ ipcMain.handle('tool:open-terminal-vscode', async () => {
   try {
     if (process.platform === 'darwin') {
       // macOS - Use open -a to launch VS Code (works without PATH issues)
-      // Then use AppleScript to wait for window and send keystrokes
+      // Then use AppleScript to wait for VS Code to be frontmost and send keystrokes
       // Note: key code 50 is backtick on US keyboard layout
       // Use spawnSync with stdin to avoid shell escaping issues
       const script = `
 do shell script "open -a 'Visual Studio Code' '${workspaceDir.replace(/'/g, "'\\''")}'"
-tell application "Visual Studio Code"
-  activate
-  repeat until (count of windows) > 0
+tell application "System Events"
+  repeat 50 times
+    if (name of first application process whose frontmost is true) is "Code" then exit repeat
     delay 0.1
   end repeat
-end tell
-delay 0.5
-tell application "System Events"
+  delay 0.5
   key code 50 using control down
   delay 0.3
   keystroke "openhands"
