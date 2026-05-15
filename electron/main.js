@@ -1,6 +1,6 @@
 const { app, BrowserWindow, ipcMain, Menu, shell, dialog, nativeTheme } = require('electron');
 const path = require('path');
-const { spawn, execSync } = require('child_process');
+const { spawn, execSync, spawnSync } = require('child_process');
 const http = require('http');
 
 // App configuration
@@ -471,9 +471,9 @@ ipcMain.handle('tool:open-terminal-vscode', async () => {
       // macOS - Use open -a to launch VS Code (works without PATH issues)
       // Then use AppleScript to wait for window and send keystrokes
       // Note: key code 50 is backtick on US keyboard layout
-      const escapedDir = workspaceDir.replace(/"/g, '\\"');
+      // Use spawnSync with stdin to avoid shell escaping issues
       const script = `
-do shell script "open -a \\"Visual Studio Code\\" \\"${escapedDir}\\""
+do shell script "open -a 'Visual Studio Code' '${workspaceDir.replace(/'/g, "'\\''")}'"
 tell application "Visual Studio Code"
   activate
   repeat until (count of windows) > 0
@@ -488,7 +488,13 @@ tell application "System Events"
   keystroke return
 end tell
 `;
-      execSync(`osascript -e "${script.replace(/"/g, '\\"').replace(/\n/g, '\\n')}"`);
+      const result = spawnSync('osascript', [], { input: script, encoding: 'utf-8' });
+      if (result.error) {
+        throw result.error;
+      }
+      if (result.status !== 0) {
+        throw new Error(result.stderr || 'AppleScript failed');
+      }
     } else if (process.platform === 'win32') {
       // Windows - Try to find VS Code in common locations
       const vscodePaths = [
