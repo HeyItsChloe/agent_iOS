@@ -459,6 +459,50 @@ ipcMain.handle('tool:open-terminal', async () => {
 });
 
 /**
+ * Tool: Open VS Code terminal in project directory with OpenHands CLI.
+ * Opens VS Code at workspace and runs openhands in integrated terminal.
+ */
+ipcMain.handle('tool:open-terminal-vscode', async () => {
+  const workspaceDir = getWorkspaceDir();
+  console.log(`[Tool] Opening VS Code terminal with OpenHands CLI at: ${workspaceDir}`);
+
+  try {
+    if (process.platform === 'darwin') {
+      // macOS - Open VS Code, wait for window, open terminal, run openhands
+      execSync(`code "${workspaceDir}"`);
+      const script = `
+        tell application "Visual Studio Code"
+          activate
+          repeat until (count of windows) > 0
+            delay 0.1
+          end repeat
+        end tell
+        delay 0.3
+        tell application "System Events"
+          keystroke "\`" using control down
+          delay 0.3
+          keystroke "openhands"
+          keystroke return
+        end tell
+      `;
+      execSync(`osascript -e '${script}'`);
+    } else if (process.platform === 'win32') {
+      // Windows - Open VS Code and use sendkeys
+      execSync(`code "${workspaceDir}"`);
+      // Windows doesn't have easy scripting like AppleScript
+      // Just open VS Code, user can open terminal manually
+    } else {
+      // Linux - Open VS Code
+      spawn('code', [workspaceDir], { detached: true });
+    }
+    return { success: true };
+  } catch (error) {
+    console.error('[Tool] Failed to open VS Code terminal:', error);
+    return { success: false, error: error.message };
+  }
+});
+
+/**
  * Tool: Open GitHub Desktop to show diff.
  * Opens GitHub Desktop application at the repository path.
  */

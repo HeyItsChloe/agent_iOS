@@ -67,6 +67,9 @@ contextBridge.exposeInMainWorld('electronAPI', {
   // Open terminal in project directory
   openTerminal: () => ipcRenderer.invoke('tool:open-terminal'),
   
+  // Open VS Code terminal in project directory
+  openTerminalVSCode: () => ipcRenderer.invoke('tool:open-terminal-vscode'),
+  
   // Open GitHub Desktop to show diff
   openGitHubDesktop: () => ipcRenderer.invoke('tool:open-github-desktop'),
   

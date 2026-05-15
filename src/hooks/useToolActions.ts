@@ -47,6 +47,13 @@ export function useToolActions(options: UseToolActionsOptions = {}) {
             }
             return { success: false, error: 'Terminal action requires Electron' };
 
+          case 'open-terminal-vscode':
+            if (isElectron && window.electronAPI?.openTerminalVSCode) {
+              await window.electronAPI.openTerminalVSCode();
+              return { success: true };
+            }
+            return { success: false, error: 'VS Code action requires Electron' };
+
           case 'show-github-diff':
             if (isElectron && window.electronAPI?.openGitHubDesktop) {
               await window.electronAPI.openGitHubDesktop();
