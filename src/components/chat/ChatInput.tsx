@@ -1,9 +1,10 @@
 import { useState, useRef, useEffect, KeyboardEvent, useMemo } from 'react';
-import { Mic, AtSign, X } from 'lucide-react';
+import { Mic, MicOff, AtSign, X } from 'lucide-react';
 import { useAgentStore } from '../../stores/agentStore';
 import { cn } from '../../utils/cn';
 import { ToolsDropdown } from './ToolsDropdown';
 import { useToolActions } from '../../hooks/useToolActions';
+import { useVoiceInput } from '../../hooks/useVoiceInput';
 import { ToolActionId } from '../../types/tool-actions';
 
 interface ChatInputProps {
@@ -25,6 +26,14 @@ export function ChatInput({
   const [selectedMention, setSelectedMention] = useState<string | null>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const { agents } = useAgentStore();
+  
+  const { 
+    isRecording, 
+    isSupported: isVoiceSupported, 
+    transcript, 
+    toggleRecording,
+    clearTranscript 
+  } = useVoiceInput();
 
   // Tool actions hook - pass onSend as the message handler
   const { executeToolAction, isElectron } = useToolActions({
@@ -65,6 +74,14 @@ export function ChatInput({
       textareaRef.current.style.height = `${Math.min(textareaRef.current.scrollHeight, 120)}px`;
     }
   }, [content]);
+
+  // Update content when voice transcript changes
+  useEffect(() => {
+    if (transcript) {
+      setContent(prev => prev ? `${prev} ${transcript}` : transcript);
+      clearTranscript();
+    }
+  }, [transcript, clearTranscript]);
 
   const handleSend = () => {
     if (!content.trim() || disabled) return;
@@ -243,10 +260,18 @@ export function ChatInput({
         {/* Mic button - sticky right */}
         <div className="flex-shrink-0">
           <button
-            className="w-9 h-9 rounded-full flex items-center justify-center text-ios-blue hover:bg-ios-secondary transition-colors"
-            disabled={disabled}
+            onClick={toggleRecording}
+            disabled={disabled || !isVoiceSupported}
+            className={cn(
+              'w-9 h-9 rounded-full flex items-center justify-center transition-colors',
+              isRecording 
+                ? 'bg-red-500 text-white animate-pulse' 
+                : 'text-ios-blue hover:bg-ios-secondary',
+              (!isVoiceSupported || disabled) && 'opacity-50 cursor-not-allowed'
+            )}
+            title={!isVoiceSupported ? 'Voice input not supported in this browser' : isRecording ? 'Stop recording' : 'Start voice input'}
           >
-            <Mic size={20} />
+            {isRecording ? <MicOff size={20} /> : <Mic size={20} />}
           </button>
         </div>
       </div>
