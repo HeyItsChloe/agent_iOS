@@ -599,7 +599,7 @@ function ToggleSwitch({ checked, onChange }: ToggleSwitchProps) {
       onClick={() => onChange(!checked)}
       className={cn(
         'w-11 h-[26px] rounded-full transition-colors relative',
-        checked ? 'bg-ios-blue' : 'bg-ios-separator'
+        checked ? 'bg-ios-blue' : 'bg-ios-gray-400 dark:bg-ios-gray-700'
       )}
     >
       <span
