@@ -30,18 +30,14 @@ export function MessageBubble({ message, showAvatar = true, showName = true }: M
       'flex gap-2 mb-3 px-4',
       isUser ? 'flex-row-reverse' : 'flex-row'
     )}>
-      {/* Avatar - only for agent messages */}
+      {/* Avatar - always show for agent messages */}
       {!isUser && (
-        showAvatar ? (
-          <div
-            className="w-8 h-8 rounded-full flex-shrink-0 flex items-center justify-center text-white text-sm"
-            style={{ backgroundColor: message.agentColor || '#007AFF' }}
-          >
-            {message.agentName?.[0] || '🤖'}
-          </div>
-        ) : (
-          <div className="w-8 flex-shrink-0" />
-        )
+        <div
+          className="w-8 h-8 rounded-full flex-shrink-0 flex items-center justify-center text-white text-sm"
+          style={{ backgroundColor: message.agentColor || '#007AFF' }}
+        >
+          {message.agentName?.[0] || '🤖'}
+        </div>
       )}
 
       {/* Bubble */}
