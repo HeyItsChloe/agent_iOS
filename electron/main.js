@@ -468,18 +468,38 @@ ipcMain.handle('tool:open-terminal-vscode', async () => {
 
   try {
     if (process.platform === 'darwin') {
-      // macOS - Use VS Code CLI directly with full path for reliable --new-window behavior
-      // Then use AppleScript to wait for VS Code to be frontmost and send keystrokes
+      // macOS - Open VS Code, then use Cmd+Shift+N for new window, then open folder
       // Note: key code 50 is backtick on US keyboard layout
-      const vscodeCli = '/Applications/Visual Studio Code.app/Contents/Resources/app/bin/code';
+      const escapedDir = workspaceDir.replace(/'/g, "'\\''");
       const script = `
-do shell script "'" & "${vscodeCli}" & "' --new-window '${workspaceDir.replace(/'/g, "'\\''")}'"
+-- First open VS Code
+do shell script "open -a 'Visual Studio Code'"
+
 tell application "System Events"
+  -- Wait for VS Code to be frontmost
   repeat 50 times
     if (name of first application process whose frontmost is true) is "Code" then exit repeat
     delay 0.1
   end repeat
+  
+  -- Cmd+Shift+N to create new window
+  keystroke "n" using {command down, shift down}
   delay 0.5
+  
+  -- Open folder with Cmd+O
+  keystroke "o" using command down
+  delay 0.3
+  
+  -- Type the path and press Enter
+  keystroke "g" using {command down, shift down}
+  delay 0.2
+  keystroke "${escapedDir}"
+  keystroke return
+  delay 0.3
+  keystroke return
+  delay 0.5
+  
+  -- Open terminal with Ctrl+\`
   key code 50 using control down
   delay 0.3
   keystroke "openhands"
