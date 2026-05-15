@@ -162,7 +162,7 @@ export function ChatInput({
 
   return (
     <div className="border-t border-ios-separator bg-ios-card p-3">
-      <div className="max-w-3xl mx-auto">
+      <div className="max-w-2xl mx-auto">
         {/* Selected mention badge */}
         {selectedAgent && (
           <div className="flex items-center gap-2 mb-2 px-2">
