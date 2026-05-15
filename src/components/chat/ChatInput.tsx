@@ -63,6 +63,9 @@ export function ChatInput({
     a.name.toLowerCase().includes(mentionFilter.toLowerCase())
   );
 
+  // Debug: Log mention state
+  console.log('[ChatInput] agentIds:', agentIds, 'agentsArray:', agentsArray.length, 'mentionableAgents:', mentionableAgents.length, 'showMentions:', showMentions);
+
   // Auto-resize textarea
   useEffect(() => {
     if (textareaRef.current) {
