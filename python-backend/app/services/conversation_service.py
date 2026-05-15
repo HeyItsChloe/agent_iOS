@@ -2,7 +2,7 @@
 
 import asyncio
 import json
-from datetime import datetime
+from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Any, Optional
 from uuid import uuid4
@@ -205,7 +205,7 @@ class ConversationService:
         print(f"[ConvService] Calling _generate_mock_response (which uses SDK)...")
         try:
             agent_response = await self._generate_mock_response(
-                conversation, content, mention_agent_id
+                conversation, content, mention_agent_id, user_message.timestamp
             )
             print(f"[ConvService] _generate_mock_response returned: {agent_response}")
             if agent_response:
@@ -301,6 +301,7 @@ class ConversationService:
         conversation: Conversation,
         user_content: str,
         mention_agent_id: Optional[str],
+        response_timestamp: Optional[datetime] = None,
     ) -> Optional[Message]:
         """Run the SDK conversation and return the response.
         
@@ -326,7 +327,8 @@ class ConversationService:
         if not agent_data:
             return await self._generate_fallback_response(
                 conversation, user_content, mention_agent_id,
-                f"Agent '{agent_id}' not found."
+                f"Agent '{agent_id}' not found.",
+                response_timestamp,
             )
         
         # Get skills
@@ -345,7 +347,7 @@ class ConversationService:
         if provider == PROVIDER_OPENHANDS:
             # Use OpenHands Cloud API
             return await self._run_openhands_cloud_conversation(
-                conversation, user_content, agent_id, agent_model
+                conversation, user_content, agent_id, agent_model, response_timestamp
             )
         else:
             # Use local SDK with direct provider API key
@@ -353,11 +355,12 @@ class ConversationService:
             if not llm:
                 return await self._generate_fallback_response(
                     conversation, user_content, agent_id,
-                    "LLM not configured. Please set your API key in Settings."
+                    "LLM not configured. Please set your API key in Settings.",
+                    response_timestamp,
                 )
             
             return await self._run_conversation_with_llm(
-                conversation, user_content, agent_id, agent_model, skill_models, llm
+                conversation, user_content, agent_id, agent_model, skill_models, llm, response_timestamp
             )
     
     async def _run_openhands_cloud_conversation(
@@ -366,6 +369,7 @@ class ConversationService:
         user_content: str,
         agent_id: str,
         agent_model: "AgentModel",
+        response_timestamp: Optional[datetime] = None,
     ) -> Optional[Message]:
         """Run conversation via OpenHands Cloud API.
         
@@ -382,7 +386,8 @@ class ConversationService:
             print(f"[ConvService] ERROR: No OpenHands API key configured")
             return await self._generate_fallback_response(
                 conversation, user_content, agent_id,
-                "OpenHands API key not configured. Please set it in Settings."
+                "OpenHands API key not configured. Please set it in Settings.",
+                response_timestamp,
             )
         
         api_key = settings.openhands_api_key.get_secret_value()
@@ -447,7 +452,7 @@ class ConversationService:
                 agent_name=agent_model.name,
                 agent_color=agent_model.color,
                 status=MessageStatus.SENT,
-                metadata={"cloud_conversation_id": cloud_conv_id},
+                timestamp=response_timestamp or datetime.utcnow(),
             )
             
             print(f"[ConvService] Created response message: {message_id}")
@@ -476,7 +481,8 @@ class ConversationService:
             
             return await self._generate_fallback_response(
                 conversation, user_content, agent_id,
-                f"OpenHands Cloud error: {str(e)}"
+                f"OpenHands Cloud error: {str(e)}",
+                response_timestamp,
             )
     
     async def _run_conversation_with_llm(
@@ -487,6 +493,7 @@ class ConversationService:
         agent_model: "AgentModel",
         skill_models: list,
         llm: "LLM",
+        response_timestamp: Optional[datetime] = None,
     ) -> Optional[Message]:
         """Run conversation with the given LLM instance."""
         from app.models.agent import Agent as AgentModel
@@ -496,7 +503,8 @@ class ConversationService:
         if not sdk_agent:
             return await self._generate_fallback_response(
                 conversation, user_content, agent_id,
-                "Failed to create SDK agent."
+                "Failed to create SDK agent.",
+                response_timestamp,
             )
         
         # Create visualizer with event callback
@@ -541,13 +549,15 @@ class ConversationService:
                 agent_name=agent_model.name,
                 agent_color=agent_model.color,
                 status=MessageStatus.SENT,
+                timestamp=response_timestamp or datetime.utcnow(),
             )
             
         except Exception as e:
             print(f"[SDK] Conversation error: {e}")
             return await self._generate_fallback_response(
                 conversation, user_content, agent_id,
-                f"Error running conversation: {str(e)}"
+                f"Error running conversation: {str(e)}",
+                response_timestamp,
             )
     
     async def _run_group_chat(
@@ -589,6 +599,7 @@ class ConversationService:
         user_content: str,
         mention_agent_id: Optional[str],
         error_message: str,
+        response_timestamp: Optional[datetime] = None,
     ) -> Message:
         """Generate a fallback response when SDK is not available."""
         agent_id = mention_agent_id or (conversation.agent_ids[0] if conversation.agent_ids else "unknown")
@@ -602,6 +613,7 @@ class ConversationService:
             agent_name="System",
             agent_color="#FF3B30",
             status=MessageStatus.ERROR,
+            timestamp=response_timestamp or datetime.utcnow(),
         )
     
     async def _generate_mock_response(
@@ -609,6 +621,7 @@ class ConversationService:
         conversation: Conversation,
         user_content: str,
         mention_agent_id: Optional[str],
+        user_message_timestamp: Optional[datetime] = None,
     ) -> Optional[Message]:
         """Generate a mock response when SDK is not available."""
         # Simulate processing time
@@ -625,9 +638,12 @@ class ConversationService:
         print(f"[Debug] openhands_api_key set: {settings.openhands_api_key is not None}")
         print(f"[Debug] llm_model: {settings.llm_model}")
         
+        # Use timestamp slightly after user message to ensure correct ordering
+        response_timestamp = (user_message_timestamp + timedelta(milliseconds=100)) if user_message_timestamp else datetime.utcnow()
+        
         # Check if SDK is available
         if SDK_AVAILABLE and settings.has_llm_api_key:
-            return await self._run_sdk_conversation(conversation, user_content, mention_agent_id)
+            return await self._run_sdk_conversation(conversation, user_content, mention_agent_id, response_timestamp)
         
         return Message(
             id=str(uuid4()),
@@ -639,6 +655,7 @@ class ConversationService:
             agent_name="Agent",
             agent_color="#007AFF",
             status=MessageStatus.SENT,
+            timestamp=response_timestamp,
         )
     
     def _conversation_to_summary(self, conversation: Conversation) -> dict[str, Any]:
