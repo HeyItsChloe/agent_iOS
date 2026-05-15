@@ -206,36 +206,87 @@ class OpenHandsCloudClient:
             kind = event.get("kind", "unknown")
             print(f"[OpenHands Cloud] Event {i}: source={source}, kind={kind}")
         
-        # Find the last agent message
+        # Find the last assistant message
+        # Note: MessageEvent uses source="assistant" (not "agent" - that's for ActionEvents)
         assistant_response = ""
         for event in reversed(events):
-            if event.get("source") == "agent" and event.get("kind") == "MessageEvent":
-                print(f"[OpenHands Cloud] Found agent MessageEvent: {event}")
-                # Check llm_message structure
+            kind = event.get("kind", "")
+            source = event.get("source", "")
+            
+            # Check for assistant/agent MessageEvent
+            if kind == "MessageEvent" and source in ("assistant", "agent"):
+                print(f"[OpenHands Cloud] Found {source} MessageEvent")
+                
+                # Try multiple content extraction paths:
+                
+                # Path 1: Direct "message" field
+                msg = event.get("message")
+                if msg and isinstance(msg, str):
+                    assistant_response = msg
+                    print(f"[OpenHands Cloud] Extracted from 'message' field: {assistant_response[:200]}...")
+                    break
+                
+                # Path 2: Direct "content" as string
+                content = event.get("content")
+                if content and isinstance(content, str):
+                    assistant_response = content
+                    print(f"[OpenHands Cloud] Extracted from 'content' string: {assistant_response[:200]}...")
+                    break
+                
+                # Path 3: llm_message structure (OpenAI chat format)
                 llm_msg = event.get("llm_message", {})
                 if llm_msg:
-                    print(f"[OpenHands Cloud] llm_message: {llm_msg}")
-                    content = llm_msg.get("content", [])
-                    print(f"[OpenHands Cloud] content: {content}")
-                    for c in content:
-                        if isinstance(c, dict) and c.get("type") == "text":
-                            assistant_response = c.get("text", "")
-                            print(f"[OpenHands Cloud] Found text response: {assistant_response[:200]}...")
+                    llm_content = llm_msg.get("content")
+                    
+                    # 3a: content is a string directly
+                    if isinstance(llm_content, str) and llm_content:
+                        assistant_response = llm_content
+                        print(f"[OpenHands Cloud] Extracted from 'llm_message.content' string: {assistant_response[:200]}...")
+                        break
+                    
+                    # 3b: content is an array of content blocks
+                    if isinstance(llm_content, list):
+                        for block in llm_content:
+                            if isinstance(block, dict):
+                                # Text block: {"type": "text", "text": "..."}
+                                if block.get("type") == "text" and block.get("text"):
+                                    assistant_response = block.get("text", "")
+                                    print(f"[OpenHands Cloud] Extracted from 'llm_message.content[].text': {assistant_response[:200]}...")
+                                    break
+                            elif isinstance(block, str) and block:
+                                # Plain string in array
+                                assistant_response = block
+                                print(f"[OpenHands Cloud] Extracted from 'llm_message.content[]' string: {assistant_response[:200]}...")
+                                break
+                        if assistant_response:
                             break
+                
+                # Path 4: Check for nested message in llm_message
+                if llm_msg.get("message"):
+                    assistant_response = llm_msg.get("message")
+                    print(f"[OpenHands Cloud] Extracted from 'llm_message.message': {assistant_response[:200]}...")
+                    break
+                
+                # Path 5: extended_content field (some SDK versions)
+                ext_content = event.get("extended_content", [])
+                if ext_content and isinstance(ext_content, list):
+                    for item in ext_content:
+                        if isinstance(item, dict) and item.get("type") == "text":
+                            assistant_response = item.get("text", "")
+                            if assistant_response:
+                                print(f"[OpenHands Cloud] Extracted from 'extended_content': {assistant_response[:200]}...")
+                                break
                     if assistant_response:
                         break
-                else:
-                    print(f"[OpenHands Cloud] No llm_message in event, checking direct content...")
-                    # Try alternative content extraction
-                    content = event.get("content", "")
-                    if content:
-                        assistant_response = content
-                        print(f"[OpenHands Cloud] Found direct content: {content[:200]}...")
-                        break
+                
+                print(f"[OpenHands Cloud] Could not extract content from MessageEvent, full event: {event}")
         
         if not assistant_response:
             print(f"[OpenHands Cloud] WARNING: No assistant response extracted from events!")
-            print(f"[OpenHands Cloud] Raw events for debugging: {events}")
+            # Print condensed event info for debugging
+            print(f"[OpenHands Cloud] Event summary for debugging:")
+            for i, event in enumerate(events):
+                print(f"[OpenHands Cloud]   {i}: kind={event.get('kind')}, source={event.get('source')}, keys={list(event.keys())}")
         
         print(f"[OpenHands Cloud] ========== END run_message ==========")
         print(f"[OpenHands Cloud] Returning: conv_id={conv_id}, response_length={len(assistant_response)}")
