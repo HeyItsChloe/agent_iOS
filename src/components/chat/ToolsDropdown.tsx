@@ -63,32 +63,33 @@ export function ToolsDropdown({
   };
 
   const handleToggle = () => {
-    if (!disabled) {
+    if (!disabled && availableActions.length > 0) {
       setIsOpen(!isOpen);
     }
   };
 
-  // Don't render if no tools available
-  if (availableActions.length === 0) {
-    return null;
-  }
+  // Always render the button (like iOS Messages), but disable if no tools
+  const hasTools = availableActions.length > 0;
 
   return (
     <div ref={dropdownRef} className="relative">
       {/* Plus Button */}
       <button
         onClick={handleToggle}
-        disabled={disabled}
+        disabled={disabled || !hasTools}
         className={cn(
           'w-9 h-9 rounded-full flex items-center justify-center transition-all duration-200 flex-shrink-0',
-          'bg-ios-blue text-white hover:bg-blue-600',
+          hasTools 
+            ? 'bg-ios-blue text-white hover:bg-blue-600' 
+            : 'bg-ios-secondary text-ios-text-secondary',
           'focus:outline-none focus:ring-2 focus:ring-ios-blue focus:ring-offset-2',
           isOpen && 'rotate-45 bg-ios-text-secondary hover:bg-gray-500',
-          disabled && 'opacity-50 cursor-not-allowed'
+          (disabled || !hasTools) && 'opacity-50 cursor-not-allowed'
         )}
-        aria-label={isOpen ? 'Close tools menu' : 'Open tools menu'}
+        aria-label={isOpen ? 'Close tools menu' : hasTools ? 'Open tools menu' : 'No tools available'}
         aria-expanded={isOpen}
         aria-haspopup="menu"
+        title={hasTools ? 'Tools' : 'No tools enabled for this agent'}
       >
         <Plus size={20} strokeWidth={2.5} />
       </button>
