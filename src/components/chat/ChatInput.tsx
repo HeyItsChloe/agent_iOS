@@ -200,16 +200,18 @@ export function ChatInput({
         )}
 
         {/* Input area */}
-        <div className="flex items-center gap-2">
-          {/* Tools dropdown (iOS-style + button) */}
-          <ToolsDropdown
-            enabledToolIds={enabledToolIds}
-            onToolAction={handleToolAction}
-            isElectron={isElectron}
-            disabled={disabled}
-          />
+        <div className="flex items-center gap-3">
+          {/* Plus button - sticky left */}
+          <div className="flex-shrink-0">
+            <ToolsDropdown
+              enabledToolIds={enabledToolIds}
+              onToolAction={handleToolAction}
+              isElectron={isElectron}
+              disabled={disabled}
+            />
+          </div>
 
-          {/* Text input */}
+          {/* Text input - centered, takes remaining space */}
           <div className="flex-1 relative">
             <textarea
               ref={textareaRef}
@@ -241,26 +243,28 @@ export function ChatInput({
             )}
           </div>
 
-          {/* Send/Voice button */}
-          {content.trim() ? (
-            <button
-              onClick={handleSend}
-              disabled={disabled}
-              className={cn(
-                'w-9 h-9 rounded-full flex items-center justify-center text-white transition-colors flex-shrink-0',
-                disabled ? 'bg-ios-blue/50 cursor-not-allowed' : 'bg-ios-blue hover:bg-blue-600'
-              )}
-            >
-              <Send size={18} />
-            </button>
-          ) : (
-            <button
-              className="w-9 h-9 rounded-full flex items-center justify-center text-ios-blue hover:bg-ios-secondary transition-colors flex-shrink-0"
-              disabled={disabled}
-            >
-              <Mic size={20} />
-            </button>
-          )}
+          {/* Send/Mic button - sticky right */}
+          <div className="flex-shrink-0">
+            {content.trim() ? (
+              <button
+                onClick={handleSend}
+                disabled={disabled}
+                className={cn(
+                  'w-9 h-9 rounded-full flex items-center justify-center text-white transition-colors',
+                  disabled ? 'bg-ios-blue/50 cursor-not-allowed' : 'bg-ios-blue hover:bg-blue-600'
+                )}
+              >
+                <Send size={18} />
+              </button>
+            ) : (
+              <button
+                className="w-9 h-9 rounded-full flex items-center justify-center text-ios-blue hover:bg-ios-secondary transition-colors"
+                disabled={disabled}
+              >
+                <Mic size={20} />
+              </button>
+            )}
+          </div>
         </div>
       </div>
     </div>
