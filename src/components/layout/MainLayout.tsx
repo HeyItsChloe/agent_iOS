@@ -36,7 +36,17 @@ export function MainLayout() {
   const [mobileShowChat, setMobileShowChat] = useState(false);
   const [announcement, setAnnouncement] = useState('');
   
-  const { activeConversationId, setActiveConversation } = useConversationStore();
+  const { activeConversationId, setActiveConversation, conversations } = useConversationStore();
+
+  // Auto-select first conversation if none is selected
+  useEffect(() => {
+    if (!activeConversationId && conversations.size > 0) {
+      const firstConversation = conversations.values().next().value;
+      if (firstConversation) {
+        setActiveConversation(firstConversation.id);
+      }
+    }
+  }, [activeConversationId, conversations, setActiveConversation]);
 
   // Listen for Electron menu events
   useEffect(() => {

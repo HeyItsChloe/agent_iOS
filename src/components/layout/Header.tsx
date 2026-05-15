@@ -24,11 +24,11 @@ export function Header({
     ? activeConversation.agentIds.map(id => agentsArray.find(a => a.id === id)).filter(Boolean)
     : [];
 
-  // No active conversation - show empty header
+  // No active conversation - show minimal empty header
+  // (This state should rarely occur as first conversation is auto-selected)
   if (!activeConversation) {
     return (
       <header className="h-16 bg-ios-card border-b border-ios-separator flex items-center px-4">
-        <h2 className="text-lg font-semibold text-ios-text-secondary">Select a conversation</h2>
       </header>
     );
   }
