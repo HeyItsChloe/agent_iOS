@@ -424,13 +424,14 @@ ipcMain.handle('tool:open-terminal', async () => {
 
   try {
     if (process.platform === 'darwin') {
-      // macOS - Open Terminal.app or iTerm if available
-      // Try iTerm first, fall back to Terminal.app
-      try {
-        spawn('open', ['-a', 'iTerm', workspaceDir]);
-      } catch {
-        spawn('open', ['-a', 'Terminal', workspaceDir]);
-      }
+      // macOS - Use osascript to open Terminal.app and cd to directory
+      const script = `
+        tell application "Terminal"
+          activate
+          do script "cd '${workspaceDir.replace(/'/g, "'\\''")}'"
+        end tell
+      `;
+      execSync(`osascript -e '${script.replace(/'/g, "'\"'\"'")}'`);
     } else if (process.platform === 'win32') {
       // Windows - Open Windows Terminal or cmd
       spawn('cmd.exe', ['/c', 'start', 'cmd', '/k', `cd /d "${workspaceDir}"`], { shell: true });
@@ -463,8 +464,14 @@ ipcMain.handle('tool:open-github-desktop', async () => {
 
   try {
     if (process.platform === 'darwin') {
-      // macOS - Open GitHub Desktop
-      spawn('open', ['-a', 'GitHub Desktop', workspaceDir]);
+      // macOS - Open GitHub Desktop with the repo path
+      // GitHub Desktop CLI: github /path/to/repo
+      try {
+        execSync(`open -a "GitHub Desktop" "${workspaceDir}"`);
+      } catch {
+        // Fallback: try the github CLI command
+        execSync(`github "${workspaceDir}"`);
+      }
     } else if (process.platform === 'win32') {
       // Windows - Open GitHub Desktop via command
       spawn('cmd', ['/c', 'github', workspaceDir], { shell: true });

@@ -31,12 +31,6 @@ export function ToolsDropdown({
   // Get available actions based on enabled tools and platform
   const availableActions = getAvailableToolActions(enabledToolIds, isElectron);
 
-  // DEBUG LOGS
-  console.log('[ToolsDropdown] enabledToolIds:', enabledToolIds);
-  console.log('[ToolsDropdown] isElectron:', isElectron);
-  console.log('[ToolsDropdown] availableActions:', availableActions);
-  console.log('[ToolsDropdown] disabled prop:', disabled);
-
   // Close dropdown when clicking outside
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
