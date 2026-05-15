@@ -246,6 +246,7 @@ class ConversationService:
                     agent_id=agent_response.agent_id,
                     agent_name=agent_response.agent_name,
                     agent_color=agent_response.agent_color,
+                    timestamp=agent_response.timestamp,
                 ),
             )
             print(f"[ConvService] Agent response broadcast complete")
