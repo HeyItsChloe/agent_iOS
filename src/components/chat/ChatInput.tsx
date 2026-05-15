@@ -34,10 +34,15 @@ export function ChatInput({
   // Get enabled tools from active agents
   const enabledToolIds = useMemo(() => {
     const toolSet = new Set<string>();
+    console.log('[ChatInput] agentIds:', agentIds);
+    console.log('[ChatInput] agents Map size:', agents.size);
     agentIds.forEach((agentId) => {
       const agent = agents.get(agentId);
+      console.log('[ChatInput] agent for', agentId, ':', agent);
+      console.log('[ChatInput] agent.toolIds:', agent?.toolIds);
       agent?.toolIds?.forEach((toolId) => toolSet.add(toolId));
     });
+    console.log('[ChatInput] computed enabledToolIds:', Array.from(toolSet));
     return Array.from(toolSet);
   }, [agentIds, agents]);
 
