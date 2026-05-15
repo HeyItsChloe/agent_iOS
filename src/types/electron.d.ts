@@ -60,9 +60,6 @@ export interface ElectronAPI {
   /** Open terminal in project directory */
   openTerminal: () => Promise<ToolActionResult>;
 
-  /** Open VS Code terminal in project directory */
-  openTerminalVSCode: () => Promise<ToolActionResult>;
-
   /** Open GitHub Desktop to show diff */
   openGitHubDesktop: () => Promise<ToolActionResult>;
 

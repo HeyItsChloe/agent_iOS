@@ -5,7 +5,6 @@
 
 export type ToolActionId =
   | 'open-terminal'
-  | 'open-terminal-vscode'
   | 'show-github-diff'
   | 'show-task-list'
   | 'run-app-browser';
@@ -38,14 +37,6 @@ export const TOOL_ACTIONS: ToolAction[] = [
     label: 'Open Terminal',
     icon: '🖥️',
     description: 'Open OpenHands CLI in Terminal.app',
-    electronOnly: true,
-  },
-  {
-    id: 'open-terminal-vscode',
-    toolId: 'terminal',
-    label: 'Open in VS Code',
-    icon: '💻',
-    description: 'Open OpenHands CLI in VS Code terminal',
     electronOnly: true,
   },
   {

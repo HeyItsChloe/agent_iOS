@@ -1,6 +1,6 @@
 const { app, BrowserWindow, ipcMain, Menu, shell, dialog, nativeTheme } = require('electron');
 const path = require('path');
-const { spawn, execSync, spawnSync } = require('child_process');
+const { spawn, execSync } = require('child_process');
 const http = require('http');
 
 // App configuration
@@ -454,97 +454,6 @@ ipcMain.handle('tool:open-terminal', async () => {
     return { success: true };
   } catch (error) {
     console.error('[Tool] Failed to open terminal:', error);
-    return { success: false, error: error.message };
-  }
-});
-
-/**
- * Tool: Open VS Code terminal in project directory with OpenHands CLI.
- * Opens VS Code at workspace and runs openhands in integrated terminal.
- */
-ipcMain.handle('tool:open-terminal-vscode', async () => {
-  const workspaceDir = getWorkspaceDir();
-  console.log(`[Tool] Opening VS Code terminal with OpenHands CLI at: ${workspaceDir}`);
-
-  try {
-    if (process.platform === 'darwin') {
-      // macOS - Open VS Code, create new window, open folder via Command Palette
-      // Note: key code 50 is backtick on US keyboard layout
-      const escapedDir = workspaceDir.replace(/'/g, "'\\''");
-      const script = `
--- Open VS Code
-do shell script "open -a 'Visual Studio Code'"
-
-tell application "System Events"
-  -- Wait for VS Code to be frontmost
-  repeat 50 times
-    if (name of first application process whose frontmost is true) is "Code" then exit repeat
-    delay 0.1
-  end repeat
-  delay 0.3
-  
-  -- Cmd+Shift+N for new window
-  keystroke "n" using {command down, shift down}
-  delay 0.5
-  
-  -- Cmd+Shift+P to open Command Palette
-  keystroke "p" using {command down, shift down}
-  delay 0.3
-  
-  -- Type "Open Folder" and press Enter
-  keystroke "Open Folder"
-  delay 0.3
-  keystroke return
-  delay 0.5
-  
-  -- In file dialog, Cmd+Shift+G to go to path
-  keystroke "g" using {command down, shift down}
-  delay 0.3
-  
-  -- Type the path
-  keystroke "${escapedDir}"
-  keystroke return
-  delay 0.3
-  
-  -- Press Enter to open
-  keystroke return
-  delay 1.0
-  
-  -- Open terminal with Ctrl+\`
-  key code 50 using control down
-  delay 0.5
-  keystroke "openhands"
-  keystroke return
-end tell
-`;
-      const result = spawnSync('osascript', [], { input: script, encoding: 'utf-8' });
-      if (result.error) {
-        throw result.error;
-      }
-      if (result.status !== 0) {
-        throw new Error(result.stderr || 'AppleScript failed');
-      }
-    } else if (process.platform === 'win32') {
-      // Windows - Try to find VS Code in common locations
-      const vscodePaths = [
-        process.env.LOCALAPPDATA + '\\Programs\\Microsoft VS Code\\Code.exe',
-        'C:\\Program Files\\Microsoft VS Code\\Code.exe',
-      ];
-      for (const codePath of vscodePaths) {
-        try {
-          spawn(codePath, [workspaceDir], { detached: true });
-          break;
-        } catch {
-          continue;
-        }
-      }
-    } else {
-      // Linux - Open VS Code
-      spawn('code', [workspaceDir], { detached: true, env: { ...process.env, PATH: process.env.PATH + ':/usr/bin:/usr/local/bin' } });
-    }
-    return { success: true };
-  } catch (error) {
-    console.error('[Tool] Failed to open VS Code terminal:', error);
     return { success: false, error: error.message };
   }
 });
