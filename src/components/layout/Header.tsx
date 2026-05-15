@@ -1,5 +1,5 @@
 import { ChevronLeft, Users, Sparkles, Info } from 'lucide-react';
-import { useConversationStore } from '../../stores/conversationStore';
+import { useActiveConversation } from '../../stores/conversationStore';
 import { useAgentStore } from '../../stores/agentStore';
 
 
@@ -16,7 +16,7 @@ export function Header({
   onOpenSkillSelector,
   onOpenInfo 
 }: HeaderProps) {
-  const { activeConversation } = useConversationStore();
+  const activeConversation = useActiveConversation();
   const { agents } = useAgentStore();
 
   const agentsArray = Array.from(agents.values());
