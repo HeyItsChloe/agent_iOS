@@ -39,7 +39,7 @@ export function TypingIndicator({ agentName, agentColor = '#007AFF', className }
 function TypingDot({ delay }: { delay: number }) {
   return (
     <span
-      className="w-2 h-2 bg-ios-text-secondary rounded-full animate-bounce"
+      className="w-2 h-2 bg-ios-gray-400 rounded-full animate-bounce"
       style={{
         animationDelay: `${delay}ms`,
         animationDuration: '600ms',

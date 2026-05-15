@@ -48,14 +48,14 @@ export function ChatView() {
   const handleSendMessage = async (content: string, mentionAgentId?: string) => {
     if (!activeConversation) return;
 
-    // Create user message
+    // Create user message with UTC timestamp for consistency
     const userMessage: Message = {
       id: `temp-${Date.now()}`,
       conversationId: activeConversation.id,
       content,
       sender: 'user',
       status: 'sending',
-      timestamp: new Date(),
+      timestamp: new Date(new Date().toISOString()), // Normalize to UTC then parse
       subAgentResults: [],
     };
 

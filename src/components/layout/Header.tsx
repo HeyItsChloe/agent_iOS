@@ -1,4 +1,4 @@
-import { ChevronLeft, MoreHorizontal, Users, Sparkles } from 'lucide-react';
+import { ChevronLeft, Users, Sparkles, Info } from 'lucide-react';
 import { useConversationStore } from '../../stores/conversationStore';
 import { useAgentStore } from '../../stores/agentStore';
 
@@ -7,33 +7,39 @@ interface HeaderProps {
   onBack?: () => void;
   onOpenAgentSelector: () => void;
   onOpenSkillSelector: () => void;
-  onOpenMenu?: () => void;
+  onOpenInfo?: () => void;
 }
 
 export function Header({ 
   onBack, 
   onOpenAgentSelector, 
   onOpenSkillSelector,
-  onOpenMenu 
+  onOpenInfo 
 }: HeaderProps) {
   const { activeConversation } = useConversationStore();
   const { agents } = useAgentStore();
 
+  const agentsArray = Array.from(agents.values());
+  const conversationAgents = activeConversation 
+    ? activeConversation.agentIds.map(id => agentsArray.find(a => a.id === id)).filter(Boolean)
+    : [];
+
+  // No active conversation - show empty header
   if (!activeConversation) {
     return (
       <header className="h-16 bg-ios-card border-b border-ios-separator flex items-center px-4">
-        <h2 className="text-lg font-semibold text-ios-text">Select a conversation</h2>
+        <h2 className="text-lg font-semibold text-ios-text-secondary">Select a conversation</h2>
       </header>
     );
   }
 
-  const agentsArray = Array.from(agents.values());
-  const conversationAgents = activeConversation.agentIds
-    .map(id => agentsArray.find(a => a.id === id))
-    .filter(Boolean);
-
   const isGroup = activeConversation.type === 'group';
   const isDelegator = activeConversation.type === 'delegator';
+
+  // Generate title: use conversation title, or agent names, or fallback
+  const displayTitle = activeConversation.title 
+    || conversationAgents.map(a => a?.name).filter(Boolean).join(', ') 
+    || 'New Conversation';
 
   return (
     <header className="h-16 bg-ios-card border-b border-ios-separator flex items-center px-4 gap-3">
@@ -71,7 +77,7 @@ export function Header({
       {/* Title & Info */}
       <div className="flex-1 min-w-0">
         <h2 className="font-semibold text-ios-text truncate">
-          {activeConversation.title || 'New Conversation'}
+          {displayTitle}
         </h2>
         <div className="flex items-center gap-2 text-xs text-ios-text-secondary">
           {isGroup && (
@@ -111,12 +117,13 @@ export function Header({
         >
           <Sparkles size={20} />
         </button>
-        {onOpenMenu && (
+        {onOpenInfo && (
           <button
-            onClick={onOpenMenu}
-            className="w-9 h-9 rounded-full hover:bg-ios-secondary flex items-center justify-center text-ios-text-secondary transition-colors"
+            onClick={onOpenInfo}
+            className="w-9 h-9 rounded-full hover:bg-ios-secondary flex items-center justify-center text-ios-blue transition-colors"
+            title="Conversation Info"
           >
-            <MoreHorizontal size={20} />
+            <Info size={20} />
           </button>
         )}
       </div>

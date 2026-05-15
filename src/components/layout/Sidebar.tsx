@@ -1,13 +1,13 @@
 import { useState } from 'react';
-import { Plus, Search, Settings, MessageSquare } from 'lucide-react';
+import { Plus, Search, MessageSquare } from 'lucide-react';
 import { useConversationStore } from '../../stores/conversationStore';
 import { useSettingsStore } from '../../stores/settingsStore';
+import { useAgentStore } from '../../stores/agentStore';
 import type { Conversation } from '../../types/conversation';
 import { formatRelativeTime } from '../../utils/formatters';
 
 interface SidebarProps {
   onNewChat: () => void;
-  onOpenSettings: () => void;
 }
 
 // Helper to get last message from conversation
@@ -16,7 +16,7 @@ function getLastMessageContent(conv: Conversation): string | null {
   return conv.messages[conv.messages.length - 1].content;
 }
 
-export function Sidebar({ onNewChat, onOpenSettings }: SidebarProps) {
+export function Sidebar({ onNewChat }: SidebarProps) {
   const [searchQuery, setSearchQuery] = useState('');
   const { 
     conversations, 
@@ -24,6 +24,7 @@ export function Sidebar({ onNewChat, onOpenSettings }: SidebarProps) {
     setActiveConversation 
   } = useConversationStore();
   const { compactMode } = useSettingsStore();
+  const { agents } = useAgentStore();
 
   const conversationsArray = Array.from(conversations.values());
   const filteredConversations = conversationsArray.filter(conv => {
@@ -43,25 +44,15 @@ export function Sidebar({ onNewChat, onOpenSettings }: SidebarProps) {
         </button>
         <div className="flex-1 overflow-y-auto w-full">
           {conversationsArray.slice(0, 10).map(conv => (
-            <button
+            <CompactConversationItem
               key={conv.id}
+              conversation={conv}
+              isActive={activeConversationId === conv.id}
               onClick={() => setActiveConversation(conv.id)}
-              className={`w-full p-2 flex justify-center ${
-                activeConversationId === conv.id ? 'bg-ios-blue/10' : ''
-              }`}
-            >
-              <div className="w-10 h-10 rounded-full bg-gradient-to-br from-ios-blue to-purple-500 flex items-center justify-center text-white text-sm font-medium">
-                {conv.title?.[0] || '?'}
-              </div>
-            </button>
+              agents={agents}
+            />
           ))}
         </div>
-        <button
-          onClick={onOpenSettings}
-          className="w-10 h-10 rounded-full bg-ios-secondary flex items-center justify-center text-ios-text-secondary hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors"
-        >
-          <Settings size={20} />
-        </button>
       </div>
     );
   }
@@ -70,8 +61,7 @@ export function Sidebar({ onNewChat, onOpenSettings }: SidebarProps) {
     <div className="w-80 bg-ios-sidebar border-r border-ios-separator flex flex-col">
       {/* Header */}
       <div className="p-4 border-b border-ios-separator">
-        <div className="flex items-center justify-between mb-4">
-          <h1 className="text-xl font-semibold text-ios-text">Messages</h1>
+        <div className="flex items-center justify-end mb-4">
           <button
             onClick={onNewChat}
             className="w-8 h-8 rounded-full bg-ios-blue flex items-center justify-center text-white hover:bg-blue-600 transition-colors"
@@ -113,20 +103,10 @@ export function Sidebar({ onNewChat, onOpenSettings }: SidebarProps) {
               conversation={conv}
               isActive={activeConversationId === conv.id}
               onClick={() => setActiveConversation(conv.id)}
+              agents={agents}
             />
           ))
         )}
-      </div>
-
-      {/* Footer */}
-      <div className="p-4 border-t border-ios-separator">
-        <button
-          onClick={onOpenSettings}
-          className="w-full flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-ios-secondary transition-colors text-ios-text-secondary"
-        >
-          <Settings size={20} />
-          <span>Settings</span>
-        </button>
       </div>
     </div>
   );
@@ -136,11 +116,14 @@ interface ConversationItemProps {
   conversation: Conversation;
   isActive: boolean;
   onClick: () => void;
+  agents: Map<string, import('../../types/agent').Agent>;
 }
 
-function ConversationItem({ conversation, isActive, onClick }: ConversationItemProps) {
-  const agentCount = conversation.agentIds.length;
+function ConversationItem({ conversation, isActive, onClick, agents }: ConversationItemProps) {
   const lastMessage = conversation.messages?.[conversation.messages.length - 1];
+  const conversationAgents = conversation.agentIds
+    .map(id => agents.get(id))
+    .filter(Boolean);
   
   return (
     <button
@@ -149,14 +132,37 @@ function ConversationItem({ conversation, isActive, onClick }: ConversationItemP
         isActive ? 'bg-ios-blue/10' : ''
       }`}
     >
-      {/* Avatar */}
-      <div className="relative flex-shrink-0">
-        {agentCount > 1 ? (
-          <div className="w-12 h-12 rounded-full bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center text-white text-lg font-medium">
-            {agentCount}
+      {/* Avatar(s) - iOS Messages style */}
+      <div className="relative flex-shrink-0 w-12 h-12">
+        {conversationAgents.length === 1 ? (
+          // Single contact avatar
+          <div
+            className="w-12 h-12 rounded-full flex items-center justify-center text-white text-lg"
+            style={{ backgroundColor: conversationAgents[0]?.color || '#007AFF' }}
+          >
+            {conversationAgents[0]?.avatar || conversationAgents[0]?.name?.[0] || '🤖'}
           </div>
+        ) : conversationAgents.length > 1 ? (
+          // Group - overlapping avatars (iOS style)
+          <>
+            {/* Back avatar (top-right) */}
+            <div
+              className="absolute top-0 right-0 w-8 h-8 rounded-full flex items-center justify-center text-white text-xs border-2 border-ios-sidebar"
+              style={{ backgroundColor: conversationAgents[1]?.color || '#8E8E93' }}
+            >
+              {conversationAgents[1]?.avatar || conversationAgents[1]?.name?.[0] || '🤖'}
+            </div>
+            {/* Front avatar (bottom-left) */}
+            <div
+              className="absolute bottom-0 left-0 w-8 h-8 rounded-full flex items-center justify-center text-white text-xs border-2 border-ios-sidebar z-10"
+              style={{ backgroundColor: conversationAgents[0]?.color || '#007AFF' }}
+            >
+              {conversationAgents[0]?.avatar || conversationAgents[0]?.name?.[0] || '🤖'}
+            </div>
+          </>
         ) : (
-          <div className="w-12 h-12 rounded-full bg-gradient-to-br from-ios-blue to-cyan-400 flex items-center justify-center text-white text-lg">
+          // No agents - default avatar
+          <div className="w-12 h-12 rounded-full bg-gradient-to-b from-gray-300 to-gray-400 flex items-center justify-center text-white text-lg">
             🤖
           </div>
         )}
@@ -166,7 +172,7 @@ function ConversationItem({ conversation, isActive, onClick }: ConversationItemP
       <div className="flex-1 min-w-0 text-left">
         <div className="flex items-center justify-between mb-1">
           <span className={`font-medium truncate ${isActive ? 'text-ios-blue' : 'text-ios-text'}`}>
-            {conversation.title || 'New Conversation'}
+            {conversation.title || conversationAgents.map(a => a?.name).filter(Boolean).join(', ') || 'New Conversation'}
           </span>
           {lastMessage && (
             <span className="text-xs text-ios-text-secondary flex-shrink-0 ml-2">
@@ -177,6 +183,56 @@ function ConversationItem({ conversation, isActive, onClick }: ConversationItemP
         <p className="text-sm text-ios-text-secondary truncate">
           {lastMessage?.content || 'No messages yet'}
         </p>
+      </div>
+    </button>
+  );
+}
+
+interface CompactConversationItemProps {
+  conversation: Conversation;
+  isActive: boolean;
+  onClick: () => void;
+  agents: Map<string, import('../../types/agent').Agent>;
+}
+
+function CompactConversationItem({ conversation, isActive, onClick, agents }: CompactConversationItemProps) {
+  const conversationAgents = conversation.agentIds
+    .map(id => agents.get(id))
+    .filter(Boolean);
+
+  return (
+    <button
+      onClick={onClick}
+      className={`w-full p-2 flex justify-center ${isActive ? 'bg-ios-blue/10' : ''}`}
+    >
+      <div className="relative w-10 h-10">
+        {conversationAgents.length === 1 ? (
+          <div
+            className="w-10 h-10 rounded-full flex items-center justify-center text-white text-sm"
+            style={{ backgroundColor: conversationAgents[0]?.color || '#007AFF' }}
+          >
+            {conversationAgents[0]?.avatar || conversationAgents[0]?.name?.[0] || '🤖'}
+          </div>
+        ) : conversationAgents.length > 1 ? (
+          <>
+            <div
+              className="absolute top-0 right-0 w-6 h-6 rounded-full flex items-center justify-center text-white text-xs border-2 border-ios-sidebar"
+              style={{ backgroundColor: conversationAgents[1]?.color || '#8E8E93' }}
+            >
+              {conversationAgents[1]?.avatar || conversationAgents[1]?.name?.[0]?.toUpperCase() || '?'}
+            </div>
+            <div
+              className="absolute bottom-0 left-0 w-6 h-6 rounded-full flex items-center justify-center text-white text-xs border-2 border-ios-sidebar z-10"
+              style={{ backgroundColor: conversationAgents[0]?.color || '#007AFF' }}
+            >
+              {conversationAgents[0]?.avatar || conversationAgents[0]?.name?.[0]?.toUpperCase() || '?'}
+            </div>
+          </>
+        ) : (
+          <div className="w-10 h-10 rounded-full bg-gradient-to-br from-ios-blue to-purple-500 flex items-center justify-center text-white text-sm">
+            {conversation.title?.[0] || '?'}
+          </div>
+        )}
       </div>
     </button>
   );

@@ -41,6 +41,26 @@ contextBridge.exposeInMainWorld('electronAPI', {
     ipcRenderer.on('menu-new-conversation', listener);
     return () => ipcRenderer.removeListener('menu-new-conversation', listener);
   },
+
+  // Settings/Preferences menu trigger
+  onMenuOpenSettings: (callback) => {
+    const listener = () => callback();
+    ipcRenderer.on('menu-open-settings', listener);
+    return () => ipcRenderer.removeListener('menu-open-settings', listener);
+  },
+
+  // Contacts menu triggers
+  onMenuShowContacts: (callback) => {
+    const listener = () => callback();
+    ipcRenderer.on('menu-show-contacts', listener);
+    return () => ipcRenderer.removeListener('menu-show-contacts', listener);
+  },
+
+  onMenuNewAgent: (callback) => {
+    const listener = () => callback();
+    ipcRenderer.on('menu-new-agent', listener);
+    return () => ipcRenderer.removeListener('menu-new-agent', listener);
+  },
 });
 
 // Type definitions for TypeScript are in src/types/electron.d.ts

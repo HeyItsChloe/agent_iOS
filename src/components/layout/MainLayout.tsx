@@ -1,4 +1,4 @@
-import { useState, Suspense, lazy, useCallback, memo } from 'react';
+import { useState, Suspense, lazy, useCallback, memo, useEffect } from 'react';
 import { Sidebar } from './Sidebar';
 import { Header } from './Header';
 import { ChatView } from '../chat/ChatView';
@@ -12,6 +12,7 @@ const NewChatModal = lazy(() => import('../modals/NewChatModal').then(m => ({ de
 const AgentSelectorModal = lazy(() => import('../modals/AgentSelectorModal').then(m => ({ default: m.AgentSelectorModal })));
 const SkillSelectorModal = lazy(() => import('../modals/SkillSelectorModal').then(m => ({ default: m.SkillSelectorModal })));
 const SettingsModal = lazy(() => import('../modals/SettingsModal').then(m => ({ default: m.SettingsModal })));
+const ContactsModal = lazy(() => import('../modals/ContactsModal').then(m => ({ default: m.ContactsModal })));
 
 // Modal loading fallback
 const ModalFallback = memo(function ModalFallback() {
@@ -30,10 +31,53 @@ export function MainLayout() {
   const [showAgentSelector, setShowAgentSelector] = useState(false);
   const [showSkillSelector, setShowSkillSelector] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
+  const [showContacts, setShowContacts] = useState(false);
+  const [contactsInitialTab, setContactsInitialTab] = useState<'all' | 'new'>('all');
   const [mobileShowChat, setMobileShowChat] = useState(false);
   const [announcement, setAnnouncement] = useState('');
   
   const { activeConversationId, setActiveConversation } = useConversationStore();
+
+  // Listen for Electron menu events
+  useEffect(() => {
+    if (!window.electronAPI) return;
+
+    const cleanups: (() => void)[] = [];
+
+    // New conversation from menu
+    if (window.electronAPI.onMenuNewConversation) {
+      cleanups.push(window.electronAPI.onMenuNewConversation(() => {
+        setShowNewChat(true);
+      }));
+    }
+
+    // Settings/Preferences from menu
+    if (window.electronAPI.onMenuOpenSettings) {
+      cleanups.push(window.electronAPI.onMenuOpenSettings(() => {
+        setShowSettings(true);
+      }));
+    }
+
+    // Show Contacts from menu
+    if (window.electronAPI.onMenuShowContacts) {
+      cleanups.push(window.electronAPI.onMenuShowContacts(() => {
+        setContactsInitialTab('all');
+        setShowContacts(true);
+      }));
+    }
+
+    // New Agent from menu
+    if (window.electronAPI.onMenuNewAgent) {
+      cleanups.push(window.electronAPI.onMenuNewAgent(() => {
+        setContactsInitialTab('new');
+        setShowContacts(true);
+      }));
+    }
+
+    return () => {
+      cleanups.forEach(cleanup => cleanup());
+    };
+  }, []);
 
   const handleSelectConversation = useCallback((id: string) => {
     setActiveConversation(id);
@@ -47,12 +91,18 @@ export function MainLayout() {
 
   const handleNewChat = useCallback(() => setShowNewChat(true), []);
   const handleCloseNewChat = useCallback(() => setShowNewChat(false), []);
-  const handleOpenSettings = useCallback(() => setShowSettings(true), []);
   const handleCloseSettings = useCallback(() => setShowSettings(false), []);
   const handleOpenAgentSelector = useCallback(() => setShowAgentSelector(true), []);
   const handleCloseAgentSelector = useCallback(() => setShowAgentSelector(false), []);
   const handleOpenSkillSelector = useCallback(() => setShowSkillSelector(true), []);
   const handleCloseSkillSelector = useCallback(() => setShowSkillSelector(false), []);
+  const handleCloseContacts = useCallback(() => setShowContacts(false), []);
+  
+  // Info button handler - for now just logs, can be extended to show info modal
+  const handleOpenInfo = useCallback(() => {
+    // TODO: Implement conversation info modal showing contacts, shared files, etc.
+    console.log('Open conversation info');
+  }, []);
 
   const handleChatCreated = useCallback((id: string) => {
     setShowNewChat(false);
@@ -77,7 +127,6 @@ export function MainLayout() {
           <ErrorBoundary>
             <Sidebar
               onNewChat={handleNewChat}
-              onOpenSettings={handleOpenSettings}
             />
           </ErrorBoundary>
         </nav>
@@ -92,6 +141,7 @@ export function MainLayout() {
             onBack={mobileShowChat ? handleBack : undefined}
             onOpenAgentSelector={handleOpenAgentSelector}
             onOpenSkillSelector={handleOpenSkillSelector}
+            onOpenInfo={handleOpenInfo}
           />
           
           <main className="flex-1 overflow-hidden">
@@ -129,6 +179,13 @@ export function MainLayout() {
           {showSettings && (
             <SettingsModal
               onClose={handleCloseSettings}
+            />
+          )}
+          
+          {showContacts && (
+            <ContactsModal
+              onClose={handleCloseContacts}
+              initialTab={contactsInitialTab}
             />
           )}
         </Suspense>

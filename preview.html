@@ -1,0 +1,1198 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>iOS Agent Messenger - All Fixes Preview</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    :root {
+      --ios-blue: #007AFF;
+      --ios-gray-1: #8E8E93;
+      --ios-gray-4: #D1D1D6;
+      --ios-gray-5: #E5E5EA;
+      --bubble-agent: #E5E5EA;
+      --text-primary: #000000;
+      --text-tertiary: #8E8E93;
+    }
+    
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Helvetica Neue', sans-serif;
+    }
+    
+    /* Typing dot animation */
+    .typing-dot {
+      width: 8px;
+      height: 8px;
+      background-color: #8E8E93;
+      border-radius: 50%;
+      animation: typingBounce 1.4s infinite ease-in-out;
+    }
+    
+    .typing-dot:nth-child(1) { animation-delay: 0s; }
+    .typing-dot:nth-child(2) { animation-delay: 0.2s; }
+    .typing-dot:nth-child(3) { animation-delay: 0.4s; }
+    
+    @keyframes typingBounce {
+      0%, 60%, 100% { transform: translateY(0); }
+      30% { transform: translateY(-4px); }
+    }
+    
+    .typing-dot-broken {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+    }
+    
+    .spinner {
+      width: 12px;
+      height: 12px;
+      border: 1px solid #8E8E93;
+      border-top-color: transparent;
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+    }
+    
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+    
+    .mac-menubar {
+      background: linear-gradient(180deg, #f6f6f6 0%, #e8e8e8 100%);
+      border-bottom: 1px solid #c0c0c0;
+    }
+    
+    .nav-link {
+      scroll-behavior: smooth;
+    }
+  </style>
+</head>
+<body class="bg-gray-100 min-h-screen">
+  <!-- Navigation -->
+  <nav class="sticky top-0 bg-white/90 backdrop-blur-sm border-b border-gray-200 z-50">
+    <div class="max-w-6xl mx-auto px-4 py-3">
+      <div class="flex items-center justify-between">
+        <h1 class="text-xl font-bold">iOS Agent Messenger - All Fixes</h1>
+        <div class="flex gap-2 text-sm">
+          <a href="#fix1" class="px-3 py-1 rounded-full bg-gray-100 hover:bg-gray-200">1</a>
+          <a href="#fix2" class="px-3 py-1 rounded-full bg-gray-100 hover:bg-gray-200">2</a>
+          <a href="#fix3" class="px-3 py-1 rounded-full bg-gray-100 hover:bg-gray-200">3</a>
+          <a href="#fix4" class="px-3 py-1 rounded-full bg-gray-100 hover:bg-gray-200">4</a>
+          <a href="#fix5" class="px-3 py-1 rounded-full bg-gray-100 hover:bg-gray-200">5</a>
+          <a href="#fix6" class="px-3 py-1 rounded-full bg-gray-100 hover:bg-gray-200">6</a>
+          <a href="#fix7" class="px-3 py-1 rounded-full bg-gray-100 hover:bg-gray-200">7</a>
+          <a href="#fix8" class="px-3 py-1 rounded-full bg-gray-100 hover:bg-gray-200">8</a>
+          <a href="#fix9" class="px-3 py-1 rounded-full bg-gray-100 hover:bg-gray-200">9</a>
+          <a href="#popups" class="px-3 py-1 rounded-full bg-purple-500 text-white hover:bg-purple-600">📱 Popups</a>
+        </div>
+      </div>
+    </div>
+  </nav>
+
+  <div class="max-w-6xl mx-auto p-8">
+    
+    <!-- ========== FIX #1: Agent Contact Bubbles ========== -->
+    <section id="fix1" class="mb-16 scroll-mt-20">
+      <h2 class="text-2xl font-bold mb-2 flex items-center gap-3">
+        <span class="w-10 h-10 bg-green-500 text-white rounded-full flex items-center justify-center">1</span>
+        Agent Contact Bubbles in Sidebar
+      </h2>
+      <p class="text-gray-600 mb-6">Each agent should appear as a contact bubble, like iOS Messages group chats</p>
+      
+      <div class="grid md:grid-cols-2 gap-6">
+        <!-- Before -->
+        <div class="bg-white rounded-2xl shadow-lg overflow-hidden">
+          <div class="bg-red-500 text-white px-4 py-2 text-sm font-medium">BEFORE</div>
+          <div class="p-4">
+            <div class="w-72 bg-gray-600 rounded-xl p-3">
+              <!-- Conversation item with generic icon -->
+              <div class="rounded-lg p-3 flex gap-3 mb-2">
+                <div class="w-14 h-14 rounded-full bg-gradient-to-br from-blue-500 to-cyan-400 flex items-center justify-center text-2xl">
+                  🤖
+                </div>
+              </div>
+              
+              <div class="rounded-lg p-3 flex gap-3">
+                <div class="w-14 h-14 rounded-full bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center text-white text-xl font-bold">
+                  3
+                </div>
+              </div>
+            </div>
+            <p class="text-xs text-gray-400 mt-3">↑ Generic robot emoji or agent count number</p>
+          </div>
+        </div>
+        
+        <!-- After -->
+        <div class="bg-white rounded-2xl shadow-lg overflow-hidden border-2 border-green-500">
+          <div class="bg-green-500 text-white px-4 py-2 text-sm font-medium">AFTER (iOS Messages Style)</div>
+          <div class="p-4">
+            <div class="w-72 bg-gray-600 rounded-xl py-4 px-6 space-y-4">
+              
+              <!-- Single contact avatar -->
+              <div class="flex justify-center">
+                <div class="w-16 h-16 rounded-full bg-gradient-to-b from-gray-300 to-gray-400 flex items-center justify-center border-2 border-gray-500">
+                  <svg class="w-10 h-10 text-gray-100" fill="currentColor" viewBox="0 0 24 24">
+                    <path d="M12 12c2.7 0 5-2.3 5-5s-2.3-5-5-5-5 2.3-5 5 2.3 5 5 5zm0 2c-3.3 0-10 1.7-10 5v3h20v-3c0-3.3-6.7-5-10-5z"/>
+                  </svg>
+                </div>
+              </div>
+              
+              <!-- Single contact with unread indicator (blue dot) -->
+              <div class="flex items-center gap-2">
+                <div class="w-3 h-3 rounded-full bg-blue-500"></div>
+                <div class="w-14 h-14 rounded-full bg-gradient-to-b from-gray-300 to-gray-400 flex items-center justify-center border-2 border-gray-500">
+                  <svg class="w-8 h-8 text-gray-100" fill="currentColor" viewBox="0 0 24 24">
+                    <path d="M12 12c2.7 0 5-2.3 5-5s-2.3-5-5-5-5 2.3-5 5 2.3 5 5 5zm0 2c-3.3 0-10 1.7-10 5v3h20v-3c0-3.3-6.7-5-10-5z"/>
+                  </svg>
+                </div>
+              </div>
+              
+              <!-- Group conversation (selected - blue background) -->
+              <div class="bg-blue-500 rounded-xl p-3 flex justify-center">
+                <div class="relative w-16 h-16">
+                  <!-- Back avatar (top-right) -->
+                  <div class="absolute top-0 right-0 w-11 h-11 rounded-full bg-gradient-to-b from-gray-300 to-gray-400 flex items-center justify-center border-2 border-blue-500">
+                    <svg class="w-6 h-6 text-gray-100" fill="currentColor" viewBox="0 0 24 24">
+                      <path d="M12 12c2.7 0 5-2.3 5-5s-2.3-5-5-5-5 2.3-5 5 2.3 5 5 5zm0 2c-3.3 0-10 1.7-10 5v3h20v-3c0-3.3-6.7-5-10-5z"/>
+                    </svg>
+                  </div>
+                  <!-- Front avatar (bottom-left) -->
+                  <div class="absolute bottom-0 left-0 w-11 h-11 rounded-full bg-gradient-to-b from-gray-300 to-gray-400 flex items-center justify-center border-2 border-blue-500 z-10">
+                    <svg class="w-6 h-6 text-gray-100" fill="currentColor" viewBox="0 0 24 24">
+                      <path d="M12 12c2.7 0 5-2.3 5-5s-2.3-5-5-5-5 2.3-5 5 2.3 5 5 5zm0 2c-3.3 0-10 1.7-10 5v3h20v-3c0-3.3-6.7-5-10-5z"/>
+                    </svg>
+                  </div>
+                </div>
+              </div>
+              
+              <!-- Group conversation (unselected) -->
+              <div class="flex justify-center">
+                <div class="relative w-16 h-16">
+                  <!-- Back avatar (top-right) -->
+                  <div class="absolute top-0 right-0 w-11 h-11 rounded-full bg-gradient-to-b from-gray-400 to-gray-500 flex items-center justify-center border-2 border-gray-600">
+                    <svg class="w-6 h-6 text-gray-200" fill="currentColor" viewBox="0 0 24 24">
+                      <path d="M12 12c2.7 0 5-2.3 5-5s-2.3-5-5-5-5 2.3-5 5 2.3 5 5 5zm0 2c-3.3 0-10 1.7-10 5v3h20v-3c0-3.3-6.7-5-10-5z"/>
+                    </svg>
+                  </div>
+                  <!-- Front avatar (bottom-left) -->
+                  <div class="absolute bottom-0 left-0 w-11 h-11 rounded-full bg-gradient-to-b from-gray-400 to-gray-500 flex items-center justify-center border-2 border-gray-600 z-10">
+                    <svg class="w-6 h-6 text-gray-200" fill="currentColor" viewBox="0 0 24 24">
+                      <path d="M12 12c2.7 0 5-2.3 5-5s-2.3-5-5-5-5 2.3-5 5 2.3 5 5 5zm0 2c-3.3 0-10 1.7-10 5v3h20v-3c0-3.3-6.7-5-10-5z"/>
+                    </svg>
+                  </div>
+                </div>
+              </div>
+              
+            </div>
+            <p class="text-xs text-gray-400 mt-3">↑ iOS style: single avatar, blue dot for unread, overlapping for groups</p>
+          </div>
+        </div>
+      </div>
+      
+      <!-- Visual Guide -->
+      <div class="mt-6 bg-gray-800 rounded-xl p-6 text-white">
+        <h3 class="font-semibold mb-4">iOS Messages Avatar Rules:</h3>
+        <div class="grid md:grid-cols-4 gap-4 text-sm">
+          <div class="bg-gray-700 rounded-lg p-3 text-center">
+            <div class="w-12 h-12 mx-auto mb-2 rounded-full bg-gradient-to-b from-gray-300 to-gray-400 flex items-center justify-center">
+              <svg class="w-7 h-7 text-gray-100" fill="currentColor" viewBox="0 0 24 24">
+                <path d="M12 12c2.7 0 5-2.3 5-5s-2.3-5-5-5-5 2.3-5 5 2.3 5 5 5zm0 2c-3.3 0-10 1.7-10 5v3h20v-3c0-3.3-6.7-5-10-5z"/>
+              </svg>
+            </div>
+            <div class="text-gray-300">Single Contact</div>
+          </div>
+          <div class="bg-gray-700 rounded-lg p-3 text-center">
+            <div class="flex items-center justify-center gap-1 mb-2">
+              <div class="w-2 h-2 rounded-full bg-blue-500"></div>
+              <div class="w-12 h-12 rounded-full bg-gradient-to-b from-gray-300 to-gray-400 flex items-center justify-center">
+                <svg class="w-7 h-7 text-gray-100" fill="currentColor" viewBox="0 0 24 24">
+                  <path d="M12 12c2.7 0 5-2.3 5-5s-2.3-5-5-5-5 2.3-5 5 2.3 5 5 5zm0 2c-3.3 0-10 1.7-10 5v3h20v-3c0-3.3-6.7-5-10-5z"/>
+                </svg>
+              </div>
+            </div>
+            <div class="text-gray-300">With Unread</div>
+          </div>
+          <div class="bg-gray-700 rounded-lg p-3 text-center">
+            <div class="relative w-14 h-14 mx-auto mb-2">
+              <div class="absolute top-0 right-0 w-9 h-9 rounded-full bg-gradient-to-b from-gray-300 to-gray-400 border-2 border-gray-700"></div>
+              <div class="absolute bottom-0 left-0 w-9 h-9 rounded-full bg-gradient-to-b from-gray-300 to-gray-400 border-2 border-gray-700 z-10"></div>
+            </div>
+            <div class="text-gray-300">Group (2+)</div>
+          </div>
+          <div class="bg-blue-500 rounded-lg p-3 text-center">
+            <div class="relative w-14 h-14 mx-auto mb-2">
+              <div class="absolute top-0 right-0 w-9 h-9 rounded-full bg-gradient-to-b from-gray-300 to-gray-400 border-2 border-blue-500"></div>
+              <div class="absolute bottom-0 left-0 w-9 h-9 rounded-full bg-gradient-to-b from-gray-300 to-gray-400 border-2 border-blue-500 z-10"></div>
+            </div>
+            <div class="text-white">Selected</div>
+          </div>
+        </div>
+      </div>
+      
+      <!-- Code -->
+      <div class="mt-4 bg-gray-900 text-gray-100 rounded-xl p-4 font-mono text-xs overflow-x-auto">
+        <div class="text-gray-500 mb-2"># File: src/components/layout/Sidebar.tsx - ConversationItem avatar</div>
+        <div class="text-green-400">+ {/* Single contact */}</div>
+        <div class="text-green-400">+ {conversationAgents.length === 1 && (</div>
+        <div class="text-green-400">+   &lt;div className="w-14 h-14 rounded-full" style={{backgroundColor: agent.color}}&gt;...&lt;/div&gt;</div>
+        <div class="text-green-400">+ )}</div>
+        <div class="text-green-400">+ {/* Group - overlapping avatars */}</div>
+        <div class="text-green-400">+ {conversationAgents.length > 1 && (</div>
+        <div class="text-green-400">+   &lt;div className="relative w-14 h-14"&gt;</div>
+        <div class="text-green-400">+     &lt;div className="absolute top-0 right-0 w-9 h-9 ..." /&gt;  {/* Back */}</div>
+        <div class="text-green-400">+     &lt;div className="absolute bottom-0 left-0 w-9 h-9 z-10 ..." /&gt;  {/* Front */}</div>
+        <div class="text-green-400">+   &lt;/div&gt;</div>
+        <div class="text-green-400">+ )}</div>
+      </div>
+    </section>
+
+    <!-- ========== FIX #2: Typing Indicator ========== -->
+    <section id="fix2" class="mb-16 scroll-mt-20">
+      <h2 class="text-2xl font-bold mb-2 flex items-center gap-3">
+        <span class="w-10 h-10 bg-green-500 text-white rounded-full flex items-center justify-center">2</span>
+        Empty Bubble → Loading Dots
+      </h2>
+      <p class="text-gray-600 mb-6">Typing indicator shows empty bubble because bg-ios-text-secondary doesn't exist as background</p>
+      
+      <div class="grid md:grid-cols-2 gap-6">
+        <!-- Before -->
+        <div class="bg-white rounded-2xl shadow-lg overflow-hidden">
+          <div class="bg-red-500 text-white px-4 py-2 text-sm font-medium">BEFORE (Bug)</div>
+          <div class="p-6">
+            <div class="flex items-center gap-2">
+              <div class="w-8 h-8 rounded-full bg-blue-500 flex items-center justify-center text-white text-sm">A</div>
+              <div class="flex flex-col items-start">
+                <span class="text-xs text-gray-500 mb-1 ml-3">Assistant</span>
+                <div class="px-4 py-3 bg-gray-200 rounded-2xl rounded-bl-md min-w-[60px] min-h-[36px]">
+                  <div class="flex items-center gap-1">
+                    <span class="typing-dot-broken"></span>
+                    <span class="typing-dot-broken"></span>
+                    <span class="typing-dot-broken"></span>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <p class="text-xs text-gray-400 mt-3">↑ Empty bubble - dots invisible (no background color)</p>
+          </div>
+        </div>
+        
+        <!-- After -->
+        <div class="bg-white rounded-2xl shadow-lg overflow-hidden border-2 border-green-500">
+          <div class="bg-green-500 text-white px-4 py-2 text-sm font-medium">AFTER (Fixed)</div>
+          <div class="p-6">
+            <div class="flex items-center gap-2">
+              <div class="w-8 h-8 rounded-full bg-blue-500 flex items-center justify-center text-white text-sm">A</div>
+              <div class="flex flex-col items-start">
+                <span class="text-xs text-gray-500 mb-1 ml-3">Assistant</span>
+                <div class="px-4 py-3 bg-gray-200 rounded-2xl rounded-bl-md">
+                  <div class="flex items-center gap-1">
+                    <span class="typing-dot"></span>
+                    <span class="typing-dot"></span>
+                    <span class="typing-dot"></span>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <p class="text-xs text-gray-400 mt-3">↑ Animated bouncing dots visible</p>
+          </div>
+        </div>
+      </div>
+      
+      <!-- Code -->
+      <div class="mt-4 bg-gray-900 text-gray-100 rounded-xl p-4 font-mono text-xs overflow-x-auto">
+        <div class="text-gray-500 mb-2"># File: src/components/chat/TypingIndicator.tsx</div>
+        <div class="text-red-400">- className="w-2 h-2 bg-ios-text-secondary rounded-full animate-bounce"</div>
+        <div class="text-green-400">+ className="w-2 h-2 bg-ios-gray-400 rounded-full animate-bounce"</div>
+      </div>
+    </section>
+
+    <!-- ========== FIX #3: Remove Status Icons ========== -->
+    <section id="fix3" class="mb-16 scroll-mt-20">
+      <h2 class="text-2xl font-bold mb-2 flex items-center gap-3">
+        <span class="w-10 h-10 bg-green-500 text-white rounded-full flex items-center justify-center">3</span>
+        Remove Spinner & Checkmark Icons
+        <span class="text-sm bg-green-100 text-green-700 px-2 py-1 rounded-full">✓ APPLIED</span>
+      </h2>
+      <p class="text-gray-600 mb-6">Remove all status icons (spinner, checkmark) from sent messages - timestamps only</p>
+      
+      <div class="grid md:grid-cols-2 gap-6">
+        <!-- Before -->
+        <div class="bg-white rounded-2xl shadow-lg overflow-hidden">
+          <div class="bg-red-500 text-white px-4 py-2 text-sm font-medium">BEFORE</div>
+          <div class="p-6 bg-gray-50">
+            <div class="space-y-3">
+              <div class="flex flex-row-reverse gap-2">
+                <div class="max-w-[75%] flex flex-col items-end">
+                  <div class="px-4 py-2 bg-blue-500 text-white rounded-2xl rounded-br-md">
+                    Sending message...
+                  </div>
+                  <div class="flex items-center gap-1 mt-1 text-xs text-gray-500 mr-3">
+                    <span>10:30 AM</span>
+                    <span class="spinner"></span>
+                  </div>
+                </div>
+              </div>
+              <div class="flex flex-row-reverse gap-2">
+                <div class="max-w-[75%] flex flex-col items-end">
+                  <div class="px-4 py-2 bg-blue-500 text-white rounded-2xl rounded-br-md">
+                    Message sent!
+                  </div>
+                  <div class="flex items-center gap-1 mt-1 text-xs text-gray-500 mr-3">
+                    <span>10:31 AM</span>
+                    <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+                    </svg>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <p class="text-xs text-gray-400 mt-4">↑ Spinner and checkmark next to time</p>
+          </div>
+        </div>
+        
+        <!-- After -->
+        <div class="bg-white rounded-2xl shadow-lg overflow-hidden border-2 border-green-500">
+          <div class="bg-green-500 text-white px-4 py-2 text-sm font-medium">AFTER (Applied)</div>
+          <div class="p-6 bg-gray-50">
+            <div class="space-y-3">
+              <div class="flex flex-row-reverse gap-2">
+                <div class="max-w-[75%] flex flex-col items-end">
+                  <div class="px-4 py-2 bg-blue-500 text-white rounded-2xl rounded-br-md">
+                    Sending message...
+                  </div>
+                  <div class="flex items-center gap-1 mt-1 text-xs text-gray-500 mr-3">
+                    <span>10:30 AM</span>
+                  </div>
+                </div>
+              </div>
+              <div class="flex flex-row-reverse gap-2">
+                <div class="max-w-[75%] flex flex-col items-end">
+                  <div class="px-4 py-2 bg-blue-500 text-white rounded-2xl rounded-br-md">
+                    Message sent!
+                  </div>
+                  <div class="flex items-center gap-1 mt-1 text-xs text-gray-500 mr-3">
+                    <span>10:31 AM</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <p class="text-xs text-gray-400 mt-4">↑ Clean timestamps only - like iOS Messages</p>
+          </div>
+        </div>
+      </div>
+      
+      <!-- Code -->
+      <div class="mt-4 bg-gray-900 text-gray-100 rounded-xl p-4 font-mono text-xs overflow-x-auto">
+        <div class="text-gray-500 mb-2"># File: src/components/chat/MessageBubble.tsx</div>
+        <div class="text-red-400">- {isUser && &lt;MessageStatusIcon status={message.status} /&gt;}</div>
+        <div class="text-red-400">- function MessageStatusIcon({ status }) { ... } // Entire function removed</div>
+      </div>
+    </section>
+
+    <!-- ========== FIX #4: Settings to Mac Menu ========== -->
+    <section id="fix4" class="mb-16 scroll-mt-20">
+      <h2 class="text-2xl font-bold mb-2 flex items-center gap-3">
+        <span class="w-10 h-10 bg-green-500 text-white rounded-full flex items-center justify-center">4</span>
+        Move Settings to Mac Menu Bar
+        <span class="text-sm bg-green-100 text-green-700 px-2 py-1 rounded-full">✓ APPLIED</span>
+      </h2>
+      <p class="text-gray-600 mb-6">Settings should be in the Mac menu bar (File, Edit, etc.) instead of sidebar footer</p>
+      
+      <div class="grid md:grid-cols-2 gap-6">
+        <!-- Before -->
+        <div class="bg-white rounded-2xl shadow-lg overflow-hidden">
+          <div class="bg-red-500 text-white px-4 py-2 text-sm font-medium">BEFORE</div>
+          <div class="p-4">
+            <div class="w-72 bg-gray-100 rounded-xl overflow-hidden">
+              <!-- Sidebar header -->
+              <div class="p-3 border-b border-gray-200">
+                <span class="font-semibold">Messages</span>
+              </div>
+              <!-- Conversations -->
+              <div class="p-3 h-32 bg-gray-50"></div>
+              <!-- Footer with settings -->
+              <div class="p-3 border-t border-gray-200 bg-white">
+                <button class="w-full flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-gray-100 text-gray-600">
+                  <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"></path>
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
+                  </svg>
+                  <span>Settings</span>
+                </button>
+              </div>
+            </div>
+            <p class="text-xs text-gray-400 mt-3">↑ Settings button in sidebar footer</p>
+          </div>
+        </div>
+        
+        <!-- After -->
+        <div class="bg-white rounded-2xl shadow-lg overflow-hidden border-2 border-green-500">
+          <div class="bg-green-500 text-white px-4 py-2 text-sm font-medium">AFTER</div>
+          <div class="p-4">
+            <!-- Mac Menu Bar -->
+            <div class="mac-menubar rounded-t-lg px-4 py-1 flex items-center gap-4 text-sm">
+              <span class="font-semibold">iOS Agent</span>
+              <span class="text-gray-700">File</span>
+              <span class="text-gray-700">Edit</span>
+              <span class="text-gray-700">View</span>
+              <span class="text-gray-700">Window</span>
+              <span class="text-gray-700">Help</span>
+            </div>
+            <!-- Dropdown preview -->
+            <div class="relative">
+              <div class="absolute left-12 top-0 bg-white rounded-lg shadow-xl border border-gray-200 py-1 w-48 z-10">
+                <div class="px-3 py-1 text-sm hover:bg-blue-500 hover:text-white">About iOS Agent</div>
+                <div class="border-t border-gray-100 my-1"></div>
+                <div class="px-3 py-1 text-sm hover:bg-blue-500 hover:text-white flex justify-between">
+                  <span>Preferences...</span>
+                  <span class="text-gray-400">⌘,</span>
+                </div>
+                <div class="border-t border-gray-100 my-1"></div>
+                <div class="px-3 py-1 text-sm text-gray-400">Services</div>
+              </div>
+            </div>
+            <div class="h-40"></div>
+            <p class="text-xs text-gray-400 mt-3">↑ Settings in Mac menu bar (⌘,)</p>
+          </div>
+        </div>
+      </div>
+      
+      <!-- Code -->
+      <div class="mt-4 bg-gray-900 text-gray-100 rounded-xl p-4 font-mono text-xs overflow-x-auto">
+        <div class="text-gray-500 mb-2"># File: electron/main.js - createAppMenu()</div>
+        <div class="text-green-400">+ { label: 'Preferences...', accelerator: 'CmdOrCtrl+,', click: () => mainWindow?.webContents.send('menu-open-settings') }</div>
+      </div>
+    </section>
+
+    <!-- ========== FIX #5: Contacts Menu ========== -->
+    <section id="fix5" class="mb-16 scroll-mt-20">
+      <h2 class="text-2xl font-bold mb-2 flex items-center gap-3">
+        <span class="w-10 h-10 bg-green-500 text-white rounded-full flex items-center justify-center">5</span>
+        Add Contacts Menu in Mac Header
+        <span class="text-sm bg-green-100 text-green-700 px-2 py-1 rounded-full">✓ APPLIED</span>
+      </h2>
+      <p class="text-gray-600 mb-6">Add a "Contacts" menu to view all agents and create new agents</p>
+      
+      <div class="grid md:grid-cols-2 gap-6">
+        <!-- Before -->
+        <div class="bg-white rounded-2xl shadow-lg overflow-hidden">
+          <div class="bg-red-500 text-white px-4 py-2 text-sm font-medium">BEFORE</div>
+          <div class="p-4">
+            <div class="mac-menubar rounded-lg px-4 py-1 flex items-center gap-4 text-sm">
+              <span class="font-semibold">iOS Agent</span>
+              <span class="text-gray-700">File</span>
+              <span class="text-gray-700">Edit</span>
+              <span class="text-gray-700">View</span>
+              <span class="text-gray-700">Window</span>
+              <span class="text-gray-700">Help</span>
+            </div>
+            <p class="text-xs text-gray-400 mt-3">↑ No Contacts menu</p>
+          </div>
+        </div>
+        
+        <!-- After -->
+        <div class="bg-white rounded-2xl shadow-lg overflow-hidden border-2 border-green-500">
+          <div class="bg-green-500 text-white px-4 py-2 text-sm font-medium">AFTER</div>
+          <div class="p-4">
+            <div class="mac-menubar rounded-t-lg px-4 py-1 flex items-center gap-4 text-sm">
+              <span class="font-semibold">iOS Agent</span>
+              <span class="text-gray-700">File</span>
+              <span class="text-gray-700">Edit</span>
+              <span class="bg-blue-500 text-white px-2 rounded">Contacts</span>
+              <span class="text-gray-700">View</span>
+              <span class="text-gray-700">Window</span>
+              <span class="text-gray-700">Help</span>
+            </div>
+            <!-- Dropdown -->
+            <div class="relative">
+              <div class="absolute left-32 top-0 bg-white rounded-lg shadow-xl border border-gray-200 py-1 w-56 z-10">
+                <div class="px-3 py-1 text-sm hover:bg-blue-500 hover:text-white flex justify-between">
+                  <span>View All Agents</span>
+                  <span class="text-gray-400">⇧⌘A</span>
+                </div>
+                <div class="border-t border-gray-100 my-1"></div>
+                <div class="px-3 py-1 text-sm hover:bg-blue-500 hover:text-white flex justify-between">
+                  <span>New Agent...</span>
+                  <span class="text-gray-400">⇧⌘N</span>
+                </div>
+              </div>
+            </div>
+            <div class="h-20"></div>
+            <p class="text-xs text-gray-400 mt-3">↑ New Contacts menu with agent management</p>
+          </div>
+        </div>
+      </div>
+      
+      <!-- Code -->
+      <div class="mt-4 bg-gray-900 text-gray-100 rounded-xl p-4 font-mono text-xs overflow-x-auto">
+        <div class="text-gray-500 mb-2"># File: electron/main.js - createAppMenu()</div>
+        <div class="text-green-400">+ { label: 'Contacts', submenu: [</div>
+        <div class="text-green-400">+   { label: 'View All Agents', accelerator: 'CmdOrCtrl+Shift+A', ... },</div>
+        <div class="text-green-400">+   { label: 'New Agent...', accelerator: 'CmdOrCtrl+Shift+N', ... }</div>
+        <div class="text-green-400">+ ]}</div>
+      </div>
+    </section>
+
+    <!-- ========== FIX #6: Info Button ========== -->
+    <section id="fix6" class="mb-16 scroll-mt-20">
+      <h2 class="text-2xl font-bold mb-2 flex items-center gap-3">
+        <span class="w-10 h-10 bg-green-500 text-white rounded-full flex items-center justify-center">6</span>
+        Info Button in Conversation Header
+      </h2>
+      <p class="text-gray-600 mb-6">Add info button (top right) to show conversation details like iOS Messages</p>
+      
+      <div class="grid md:grid-cols-2 gap-6">
+        <!-- Before -->
+        <div class="bg-white rounded-2xl shadow-lg overflow-hidden">
+          <div class="bg-red-500 text-white px-4 py-2 text-sm font-medium">BEFORE</div>
+          <div class="p-4">
+            <div class="bg-gray-50 rounded-xl overflow-hidden">
+              <div class="h-14 bg-white border-b border-gray-200 flex items-center px-4 gap-3">
+                <div class="w-10 h-10 rounded-full bg-blue-500 flex items-center justify-center text-white">A</div>
+                <div class="flex-1">
+                  <div class="font-semibold">Code Assistant</div>
+                  <div class="text-xs text-gray-500">Online</div>
+                </div>
+                <div class="flex gap-1">
+                  <button class="w-9 h-9 rounded-full hover:bg-gray-100 flex items-center justify-center text-blue-500">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"></path>
+                    </svg>
+                  </button>
+                  <button class="w-9 h-9 rounded-full hover:bg-gray-100 flex items-center justify-center text-blue-500">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z"></path>
+                    </svg>
+                  </button>
+                </div>
+              </div>
+            </div>
+            <p class="text-xs text-gray-400 mt-3">↑ No info button</p>
+          </div>
+        </div>
+        
+        <!-- After -->
+        <div class="bg-white rounded-2xl shadow-lg overflow-hidden border-2 border-green-500">
+          <div class="bg-green-500 text-white px-4 py-2 text-sm font-medium">AFTER</div>
+          <div class="p-4">
+            <div class="bg-gray-50 rounded-xl overflow-hidden">
+              <div class="h-14 bg-white border-b border-gray-200 flex items-center px-4 gap-3">
+                <div class="w-10 h-10 rounded-full bg-blue-500 flex items-center justify-center text-white">A</div>
+                <div class="flex-1">
+                  <div class="font-semibold">Code Assistant</div>
+                  <div class="text-xs text-gray-500">Online</div>
+                </div>
+                <div class="flex gap-1">
+                  <button class="w-9 h-9 rounded-full hover:bg-gray-100 flex items-center justify-center text-blue-500">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"></path>
+                    </svg>
+                  </button>
+                  <button class="w-9 h-9 rounded-full hover:bg-gray-100 flex items-center justify-center text-blue-500">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z"></path>
+                    </svg>
+                  </button>
+                  <button class="w-9 h-9 rounded-full bg-blue-100 flex items-center justify-center text-blue-500">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                    </svg>
+                  </button>
+                </div>
+              </div>
+            </div>
+            <p class="text-xs text-gray-400 mt-3">↑ Info button added (shows contacts, shared files, etc.)</p>
+          </div>
+        </div>
+      </div>
+      
+      <!-- Code -->
+      <div class="mt-4 bg-gray-900 text-gray-100 rounded-xl p-4 font-mono text-xs overflow-x-auto">
+        <div class="text-gray-500 mb-2"># File: src/components/layout/Header.tsx</div>
+        <div class="text-green-400">+ import { Info } from 'lucide-react';</div>
+        <div class="text-green-400">+ &lt;button onClick={onOpenInfo}&gt;&lt;Info size={20} /&gt;&lt;/button&gt;</div>
+      </div>
+    </section>
+
+    <!-- ========== FIX #7: Hardcoded Header Text ========== -->
+    <section id="fix7" class="mb-16 scroll-mt-20">
+      <h2 class="text-2xl font-bold mb-2 flex items-center gap-3">
+        <span class="w-10 h-10 bg-green-500 text-white rounded-full flex items-center justify-center">7</span>
+        Fix Hardcoded "Select a conversation"
+      </h2>
+      <p class="text-gray-600 mb-6">Show contact names or conversation title instead of hardcoded text</p>
+      
+      <div class="grid md:grid-cols-2 gap-6">
+        <!-- Before -->
+        <div class="bg-white rounded-2xl shadow-lg overflow-hidden">
+          <div class="bg-red-500 text-white px-4 py-2 text-sm font-medium">BEFORE</div>
+          <div class="p-4">
+            <div class="bg-gray-50 rounded-xl overflow-hidden">
+              <div class="h-14 bg-white border-b border-gray-200 flex items-center px-4">
+                <span class="font-semibold text-gray-400">Select a conversation</span>
+              </div>
+              <div class="h-32 flex items-center justify-center text-gray-400">
+                No conversation selected
+              </div>
+            </div>
+            <p class="text-xs text-gray-400 mt-3">↑ Hardcoded placeholder text</p>
+          </div>
+        </div>
+        
+        <!-- After -->
+        <div class="bg-white rounded-2xl shadow-lg overflow-hidden border-2 border-green-500">
+          <div class="bg-green-500 text-white px-4 py-2 text-sm font-medium">AFTER</div>
+          <div class="p-4">
+            <div class="bg-gray-50 rounded-xl overflow-hidden">
+              <div class="h-14 bg-white border-b border-gray-200 flex items-center px-4 gap-3">
+                <div class="w-10 h-10 rounded-full bg-purple-500 flex items-center justify-center text-white">C</div>
+                <div class="flex-1">
+                  <div class="font-semibold">Code Assistant, Data Analyst</div>
+                  <div class="text-xs text-gray-500">2 agents</div>
+                </div>
+              </div>
+              <div class="h-32 flex items-center justify-center text-gray-400">
+                Start chatting...
+              </div>
+            </div>
+            <p class="text-xs text-gray-400 mt-3">↑ Shows agent names when no title set</p>
+          </div>
+        </div>
+      </div>
+      
+      <!-- Code -->
+      <div class="mt-4 bg-gray-900 text-gray-100 rounded-xl p-4 font-mono text-xs overflow-x-auto">
+        <div class="text-gray-500 mb-2"># File: src/components/layout/Header.tsx</div>
+        <div class="text-red-400">- {activeConversation.title || 'New Conversation'}</div>
+        <div class="text-green-400">+ {activeConversation.title || conversationAgents.map(a => a?.name).filter(Boolean).join(', ') || 'New Conversation'}</div>
+      </div>
+    </section>
+
+    <!-- ========== FIX #8: Remove "Messages" ========== -->
+    <section id="fix8" class="mb-16 scroll-mt-20">
+      <h2 class="text-2xl font-bold mb-2 flex items-center gap-3">
+        <span class="w-10 h-10 bg-green-500 text-white rounded-full flex items-center justify-center">8</span>
+        Remove "Messages" from Sidebar Header
+      </h2>
+      <p class="text-gray-600 mb-6">Remove the "Messages" title from conversation sidebar header</p>
+      
+      <div class="grid md:grid-cols-2 gap-6">
+        <!-- Before -->
+        <div class="bg-white rounded-2xl shadow-lg overflow-hidden">
+          <div class="bg-red-500 text-white px-4 py-2 text-sm font-medium">BEFORE</div>
+          <div class="p-4">
+            <div class="w-64 bg-gray-100 rounded-xl p-4">
+              <div class="flex items-center justify-between mb-4">
+                <h1 class="text-xl font-semibold">Messages</h1>
+                <div class="w-8 h-8 bg-blue-500 rounded-full flex items-center justify-center text-white">+</div>
+              </div>
+              <div class="bg-white rounded-lg p-2 mb-2">
+                <input type="text" placeholder="Search" class="w-full bg-gray-100 rounded-lg px-3 py-2 text-sm">
+              </div>
+            </div>
+            <p class="text-xs text-gray-400 mt-3">↑ "Messages" header text</p>
+          </div>
+        </div>
+        
+        <!-- After -->
+        <div class="bg-white rounded-2xl shadow-lg overflow-hidden border-2 border-green-500">
+          <div class="bg-green-500 text-white px-4 py-2 text-sm font-medium">AFTER</div>
+          <div class="p-4">
+            <div class="w-64 bg-gray-100 rounded-xl p-4">
+              <div class="flex items-center justify-end mb-4">
+                <div class="w-8 h-8 bg-blue-500 rounded-full flex items-center justify-center text-white">+</div>
+              </div>
+              <div class="bg-white rounded-lg p-2 mb-2">
+                <input type="text" placeholder="Search" class="w-full bg-gray-100 rounded-lg px-3 py-2 text-sm">
+              </div>
+            </div>
+            <p class="text-xs text-gray-400 mt-3">↑ Header text removed - cleaner look</p>
+          </div>
+        </div>
+      </div>
+      
+      <!-- Code -->
+      <div class="mt-4 bg-gray-900 text-gray-100 rounded-xl p-4 font-mono text-xs overflow-x-auto">
+        <div class="text-gray-500 mb-2"># File: src/components/layout/Sidebar.tsx</div>
+        <div class="text-red-400">- &lt;h1 className="text-xl font-semibold text-ios-text"&gt;Messages&lt;/h1&gt;</div>
+      </div>
+    </section>
+
+    <!-- ========== FIX #9: Timezone Mismatch ========== -->
+    <section id="fix9" class="mb-16 scroll-mt-20">
+      <h2 class="text-2xl font-bold mb-2 flex items-center gap-3">
+        <span class="w-10 h-10 bg-green-500 text-white rounded-full flex items-center justify-center">9</span>
+        Fix Timezone Mismatch
+      </h2>
+      <p class="text-gray-600 mb-6">User message and agent response timestamps show different timezones</p>
+      
+      <div class="grid md:grid-cols-2 gap-6">
+        <!-- Before -->
+        <div class="bg-white rounded-2xl shadow-lg overflow-hidden">
+          <div class="bg-red-500 text-white px-4 py-2 text-sm font-medium">BEFORE (Bug)</div>
+          <div class="p-6 bg-gray-50">
+            <div class="space-y-3">
+              <div class="flex flex-row-reverse gap-2">
+                <div class="max-w-[75%] flex flex-col items-end">
+                  <div class="px-4 py-2 bg-blue-500 text-white rounded-2xl rounded-br-md">
+                    What time is it?
+                  </div>
+                  <div class="text-xs text-gray-500 mr-3 mt-1">
+                    <span class="text-red-500 font-medium">10:30 AM</span> (local time)
+                  </div>
+                </div>
+              </div>
+              <div class="flex gap-2">
+                <div class="w-8 h-8 rounded-full bg-green-500 flex items-center justify-center text-white text-sm">A</div>
+                <div class="max-w-[75%] flex flex-col items-start">
+                  <div class="px-4 py-2 bg-gray-200 rounded-2xl rounded-bl-md">
+                    It's currently 5:30 PM UTC
+                  </div>
+                  <div class="text-xs text-gray-500 ml-3 mt-1">
+                    <span class="text-red-500 font-medium">5:30 PM</span> (server UTC)
+                  </div>
+                </div>
+              </div>
+            </div>
+            <p class="text-xs text-red-400 mt-4">↑ Different timezones shown - confusing!</p>
+          </div>
+        </div>
+        
+        <!-- After -->
+        <div class="bg-white rounded-2xl shadow-lg overflow-hidden border-2 border-green-500">
+          <div class="bg-green-500 text-white px-4 py-2 text-sm font-medium">AFTER (Fixed)</div>
+          <div class="p-6 bg-gray-50">
+            <div class="space-y-3">
+              <div class="flex flex-row-reverse gap-2">
+                <div class="max-w-[75%] flex flex-col items-end">
+                  <div class="px-4 py-2 bg-blue-500 text-white rounded-2xl rounded-br-md">
+                    What time is it?
+                  </div>
+                  <div class="text-xs text-gray-500 mr-3 mt-1">
+                    <span class="text-green-600 font-medium">10:30 AM</span>
+                  </div>
+                </div>
+              </div>
+              <div class="flex gap-2">
+                <div class="w-8 h-8 rounded-full bg-green-500 flex items-center justify-center text-white text-sm">A</div>
+                <div class="max-w-[75%] flex flex-col items-start">
+                  <div class="px-4 py-2 bg-gray-200 rounded-2xl rounded-bl-md">
+                    It's currently 5:30 PM UTC
+                  </div>
+                  <div class="text-xs text-gray-500 ml-3 mt-1">
+                    <span class="text-green-600 font-medium">10:30 AM</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <p class="text-xs text-green-600 mt-4">↑ Consistent local timezone for both</p>
+          </div>
+        </div>
+      </div>
+      
+      <!-- Code -->
+      <div class="mt-4 bg-gray-900 text-gray-100 rounded-xl p-4 font-mono text-xs overflow-x-auto">
+        <div class="text-gray-500 mb-2"># File: src/hooks/useConversationWebSocket.ts</div>
+        <div class="text-gray-500"># Ensure server sends ISO timestamps with timezone (Z suffix)</div>
+        <div class="text-green-400">+ timestamp: data.timestamp ? new Date(data.timestamp) : new Date()</div>
+        <div class="text-gray-500 mt-2"># Backend should send: datetime.now(timezone.utc).isoformat()</div>
+      </div>
+    </section>
+
+    <!-- ========== POPUP PREVIEWS ========== -->
+    <section id="popups" class="mb-16 scroll-mt-20">
+      <h2 class="text-2xl font-bold mb-6 flex items-center gap-3">
+        <span class="w-10 h-10 bg-purple-500 text-white rounded-full flex items-center justify-center">📱</span>
+        Menu Popups Preview
+      </h2>
+      <p class="text-gray-600 mb-6">These windows render when triggered from the Mac menu bar (macOS Contacts style)</p>
+
+      <div class="space-y-8">
+        
+        <!-- Contacts Window - macOS Style -->
+        <div class="bg-white rounded-2xl shadow-xl overflow-hidden">
+          <div class="bg-purple-500 text-white px-4 py-2 text-sm font-medium flex items-center gap-2">
+            <span>Contacts → View All Agents (⇧⌘A)</span>
+          </div>
+          
+          <!-- macOS Contacts Style Window -->
+          <div class="bg-gray-100 p-6">
+            <div class="bg-white rounded-xl shadow-2xl overflow-hidden border border-gray-200" style="max-width: 900px; margin: 0 auto;">
+              
+              <!-- macOS Window Titlebar -->
+              <div class="h-12 bg-gradient-to-b from-gray-100 to-gray-200 border-b border-gray-300 flex items-center px-4 gap-2">
+                <div class="flex gap-2">
+                  <div class="w-3 h-3 rounded-full bg-red-500"></div>
+                  <div class="w-3 h-3 rounded-full bg-yellow-500"></div>
+                  <div class="w-3 h-3 rounded-full bg-green-500"></div>
+                </div>
+                <div class="flex-1 text-center text-sm font-medium text-gray-700">Contacts</div>
+              </div>
+              
+              <!-- Three Column Layout -->
+              <div class="flex h-96">
+                
+                <!-- Left Sidebar - Groups -->
+                <div class="w-48 bg-gray-50 border-r border-gray-200 flex flex-col">
+                  <!-- Search -->
+                  <div class="p-2">
+                    <div class="relative">
+                      <svg class="w-3 h-3 absolute left-2 top-1/2 -translate-y-1/2 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
+                      </svg>
+                      <input type="text" placeholder="Search" class="w-full pl-7 pr-2 py-1 bg-white border border-gray-300 rounded text-xs">
+                    </div>
+                  </div>
+                  
+                  <!-- Groups List -->
+                  <div class="flex-1 overflow-y-auto text-xs">
+                    <div class="px-2 py-1 text-gray-500 font-semibold uppercase tracking-wide">Smart Groups</div>
+                    <div class="px-3 py-1.5 bg-blue-500 text-white font-medium rounded-md mx-1">All Agents</div>
+                    <div class="px-3 py-1.5 hover:bg-gray-200 rounded-md mx-1 text-gray-700">Built-in</div>
+                    <div class="px-3 py-1.5 hover:bg-gray-200 rounded-md mx-1 text-gray-700">Custom</div>
+                    <div class="px-3 py-1.5 hover:bg-gray-200 rounded-md mx-1 text-gray-700">Recently Used</div>
+                    
+                    <div class="px-2 py-1 mt-3 text-gray-500 font-semibold uppercase tracking-wide">Groups</div>
+                    <div class="px-3 py-1.5 hover:bg-gray-200 rounded-md mx-1 text-gray-700">🔧 Development</div>
+                    <div class="px-3 py-1.5 hover:bg-gray-200 rounded-md mx-1 text-gray-700">📊 Analytics</div>
+                    <div class="px-3 py-1.5 hover:bg-gray-200 rounded-md mx-1 text-gray-700">🎨 Creative</div>
+                  </div>
+                  
+                  <!-- Add Group Button -->
+                  <div class="p-2 border-t border-gray-200">
+                    <button class="w-full text-xs text-gray-500 hover:text-gray-700 flex items-center justify-center gap-1">
+                      <span>+</span> New Group
+                    </button>
+                  </div>
+                </div>
+                
+                <!-- Middle - Contact List -->
+                <div class="w-56 border-r border-gray-200 flex flex-col bg-white">
+                  <div class="flex-1 overflow-y-auto">
+                    <!-- Contact Item - Selected -->
+                    <div class="px-3 py-2 bg-blue-500 text-white flex items-center gap-3">
+                      <div class="w-8 h-8 rounded-full bg-blue-600 flex items-center justify-center text-sm">🤖</div>
+                      <div class="flex-1 min-w-0">
+                        <div class="text-sm font-medium truncate">Code Assistant</div>
+                        <div class="text-xs opacity-80">Built-in</div>
+                      </div>
+                    </div>
+                    
+                    <!-- Contact Item -->
+                    <div class="px-3 py-2 hover:bg-gray-50 flex items-center gap-3 border-b border-gray-100">
+                      <div class="w-8 h-8 rounded-full bg-green-500 flex items-center justify-center text-sm text-white">📊</div>
+                      <div class="flex-1 min-w-0">
+                        <div class="text-sm font-medium text-gray-900 truncate">Data Analyst</div>
+                        <div class="text-xs text-gray-500">Built-in</div>
+                      </div>
+                    </div>
+                    
+                    <!-- Contact Item -->
+                    <div class="px-3 py-2 hover:bg-gray-50 flex items-center gap-3 border-b border-gray-100">
+                      <div class="w-8 h-8 rounded-full bg-purple-500 flex items-center justify-center text-sm text-white">🧠</div>
+                      <div class="flex-1 min-w-0">
+                        <div class="text-sm font-medium text-gray-900 truncate">Research Agent</div>
+                        <div class="text-xs text-gray-500">Custom</div>
+                      </div>
+                    </div>
+                    
+                    <!-- Contact Item -->
+                    <div class="px-3 py-2 hover:bg-gray-50 flex items-center gap-3 border-b border-gray-100">
+                      <div class="w-8 h-8 rounded-full bg-orange-500 flex items-center justify-center text-sm text-white">🔧</div>
+                      <div class="flex-1 min-w-0">
+                        <div class="text-sm font-medium text-gray-900 truncate">DevOps Helper</div>
+                        <div class="text-xs text-gray-500">Custom</div>
+                      </div>
+                    </div>
+                    
+                    <!-- Contact Item -->
+                    <div class="px-3 py-2 hover:bg-gray-50 flex items-center gap-3 border-b border-gray-100">
+                      <div class="w-8 h-8 rounded-full bg-pink-500 flex items-center justify-center text-sm text-white">🎨</div>
+                      <div class="flex-1 min-w-0">
+                        <div class="text-sm font-medium text-gray-900 truncate">UI Designer</div>
+                        <div class="text-xs text-gray-500">Custom</div>
+                      </div>
+                    </div>
+                  </div>
+                  
+                  <!-- Contact count -->
+                  <div class="p-2 border-t border-gray-200 text-center text-xs text-gray-500">
+                    5 agents
+                  </div>
+                </div>
+                
+                <!-- Right - Contact Details -->
+                <div class="flex-1 bg-white p-6 flex flex-col items-center">
+                  <!-- Large Avatar -->
+                  <div class="w-24 h-24 rounded-full bg-blue-500 flex items-center justify-center text-4xl mb-4 shadow-lg">
+                    🤖
+                  </div>
+                  
+                  <!-- Name -->
+                  <h2 class="text-xl font-semibold text-gray-900 mb-1">Code Assistant</h2>
+                  <p class="text-sm text-gray-500 mb-4">Built-in Agent</p>
+                  
+                  <!-- Action Buttons -->
+                  <div class="flex gap-2 mb-6">
+                    <button class="px-4 py-2 bg-blue-500 text-white rounded-lg text-sm font-medium flex items-center gap-2 hover:bg-blue-600">
+                      <span>💬</span> Message
+                    </button>
+                    <button class="px-4 py-2 bg-gray-100 text-gray-700 rounded-lg text-sm font-medium hover:bg-gray-200">
+                      Edit
+                    </button>
+                  </div>
+                  
+                  <!-- Details -->
+                  <div class="w-full max-w-sm space-y-3 text-sm">
+                    <div class="flex border-b border-gray-100 pb-2">
+                      <span class="text-gray-500 w-24">Type</span>
+                      <span class="text-gray-900">Built-in</span>
+                    </div>
+                    <div class="flex border-b border-gray-100 pb-2">
+                      <span class="text-gray-500 w-24">Skills</span>
+                      <span class="text-gray-900">3 skills</span>
+                    </div>
+                    <div class="flex border-b border-gray-100 pb-2">
+                      <span class="text-gray-500 w-24">Tools</span>
+                      <span class="text-gray-900">Terminal, Editor, Browser</span>
+                    </div>
+                    <div class="pt-2">
+                      <span class="text-gray-500 block mb-1">Description</span>
+                      <span class="text-gray-700 text-xs">A helpful AI assistant that can write, review, and debug code across multiple programming languages.</span>
+                    </div>
+                  </div>
+                </div>
+                
+              </div>
+              
+              <!-- Bottom Toolbar -->
+              <div class="h-10 bg-gray-50 border-t border-gray-200 flex items-center px-3 gap-2">
+                <button class="w-6 h-6 rounded hover:bg-gray-200 flex items-center justify-center text-gray-600 text-lg">+</button>
+                <button class="w-6 h-6 rounded hover:bg-gray-200 flex items-center justify-center text-gray-600 text-lg">−</button>
+                <div class="flex-1"></div>
+                <button class="px-2 py-1 text-xs text-gray-600 hover:bg-gray-200 rounded">Share</button>
+              </div>
+              
+            </div>
+          </div>
+        </div>
+
+        <!-- New Agent Window - macOS Style -->
+        <div class="bg-white rounded-2xl shadow-xl overflow-hidden">
+          <div class="bg-purple-500 text-white px-4 py-2 text-sm font-medium flex items-center gap-2">
+            <span>Contacts → New Agent... (⇧⌘N)</span>
+          </div>
+          
+          <div class="bg-gray-100 p-6">
+            <div class="bg-white rounded-xl shadow-2xl overflow-hidden border border-gray-200" style="max-width: 500px; margin: 0 auto;">
+              
+              <!-- macOS Window Titlebar -->
+              <div class="h-12 bg-gradient-to-b from-gray-100 to-gray-200 border-b border-gray-300 flex items-center px-4 gap-2">
+                <div class="flex gap-2">
+                  <div class="w-3 h-3 rounded-full bg-red-500"></div>
+                  <div class="w-3 h-3 rounded-full bg-yellow-500"></div>
+                  <div class="w-3 h-3 rounded-full bg-green-500"></div>
+                </div>
+                <div class="flex-1 text-center text-sm font-medium text-gray-700">New Agent</div>
+              </div>
+              
+              <!-- Contact Card Form -->
+              <div class="p-6">
+                <!-- Avatar Section -->
+                <div class="flex flex-col items-center mb-6">
+                  <div class="w-24 h-24 rounded-full bg-gradient-to-b from-gray-300 to-gray-400 flex items-center justify-center text-4xl mb-3 shadow-lg cursor-pointer hover:opacity-80 transition-opacity border-4 border-white">
+                    🤖
+                  </div>
+                  <button class="text-blue-500 text-sm hover:underline">Choose Photo</button>
+                </div>
+                
+                <!-- Form Fields (macOS style) -->
+                <div class="space-y-4">
+                  <!-- Name Field -->
+                  <div class="flex items-center gap-3">
+                    <label class="w-24 text-right text-sm text-gray-500">Name</label>
+                    <input type="text" placeholder="Agent Name" class="flex-1 px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                  </div>
+                  
+                  <!-- Type Field -->
+                  <div class="flex items-center gap-3">
+                    <label class="w-24 text-right text-sm text-gray-500">Type</label>
+                    <select class="flex-1 px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white">
+                      <option>Custom Agent</option>
+                      <option>Delegator Agent</option>
+                    </select>
+                  </div>
+                  
+                  <!-- Color Field -->
+                  <div class="flex items-center gap-3">
+                    <label class="w-24 text-right text-sm text-gray-500">Color</label>
+                    <div class="flex gap-2">
+                      <button class="w-7 h-7 rounded-full bg-blue-500 ring-2 ring-offset-2 ring-blue-500"></button>
+                      <button class="w-7 h-7 rounded-full bg-green-500 hover:ring-2 hover:ring-offset-2 hover:ring-green-500"></button>
+                      <button class="w-7 h-7 rounded-full bg-orange-500 hover:ring-2 hover:ring-offset-2 hover:ring-orange-500"></button>
+                      <button class="w-7 h-7 rounded-full bg-red-500 hover:ring-2 hover:ring-offset-2 hover:ring-red-500"></button>
+                      <button class="w-7 h-7 rounded-full bg-purple-500 hover:ring-2 hover:ring-offset-2 hover:ring-purple-500"></button>
+                      <button class="w-7 h-7 rounded-full bg-pink-500 hover:ring-2 hover:ring-offset-2 hover:ring-pink-500"></button>
+                    </div>
+                  </div>
+                  
+                  <!-- Description Field -->
+                  <div class="flex items-start gap-3">
+                    <label class="w-24 text-right text-sm text-gray-500 pt-2">Description</label>
+                    <textarea rows="2" placeholder="Brief description of the agent..." class="flex-1 px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"></textarea>
+                  </div>
+                  
+                  <!-- System Prompt Field -->
+                  <div class="flex items-start gap-3">
+                    <label class="w-24 text-right text-sm text-gray-500 pt-2">Instructions</label>
+                    <textarea rows="4" placeholder="System prompt / instructions for the agent..." class="flex-1 px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"></textarea>
+                  </div>
+                </div>
+              </div>
+              
+              <!-- Footer Buttons -->
+              <div class="px-6 py-4 bg-gray-50 border-t border-gray-200 flex justify-end gap-3">
+                <button class="px-4 py-2 text-sm text-gray-600 hover:bg-gray-200 rounded-md">Cancel</button>
+                <button class="px-4 py-2 text-sm bg-blue-500 text-white rounded-md hover:bg-blue-600 font-medium">Create</button>
+              </div>
+              
+            </div>
+          </div>
+        </div>
+
+        <!-- Settings/Preferences Window - macOS Style -->
+        <div class="bg-white rounded-2xl shadow-xl overflow-hidden">
+          <div class="bg-purple-500 text-white px-4 py-2 text-sm font-medium flex items-center gap-2">
+            <span>iOS Agent → Preferences... (⌘,)</span>
+          </div>
+          
+          <div class="bg-gray-100 p-6">
+            <div class="bg-white rounded-xl shadow-2xl overflow-hidden border border-gray-200" style="max-width: 600px; margin: 0 auto;">
+              
+              <!-- macOS Window Titlebar -->
+              <div class="h-12 bg-gradient-to-b from-gray-100 to-gray-200 border-b border-gray-300 flex items-center px-4 gap-2">
+                <div class="flex gap-2">
+                  <div class="w-3 h-3 rounded-full bg-red-500"></div>
+                  <div class="w-3 h-3 rounded-full bg-yellow-500"></div>
+                  <div class="w-3 h-3 rounded-full bg-green-500"></div>
+                </div>
+                <div class="flex-1 text-center text-sm font-medium text-gray-700">Settings</div>
+              </div>
+              
+              <!-- Toolbar with icons (macOS System Preferences style) -->
+              <div class="bg-gradient-to-b from-gray-50 to-gray-100 border-b border-gray-200 p-3">
+                <div class="flex justify-center gap-6">
+                  <button class="flex flex-col items-center gap-1 px-4 py-2 rounded-lg bg-blue-500 text-white">
+                    <span class="text-2xl">🎨</span>
+                    <span class="text-xs font-medium">Appearance</span>
+                  </button>
+                  <button class="flex flex-col items-center gap-1 px-4 py-2 rounded-lg hover:bg-gray-200 text-gray-700">
+                    <span class="text-2xl">🔑</span>
+                    <span class="text-xs font-medium">LLM Config</span>
+                  </button>
+                  <button class="flex flex-col items-center gap-1 px-4 py-2 rounded-lg hover:bg-gray-200 text-gray-700">
+                    <span class="text-2xl">⚙️</span>
+                    <span class="text-xs font-medium">Advanced</span>
+                  </button>
+                  <button class="flex flex-col items-center gap-1 px-4 py-2 rounded-lg hover:bg-gray-200 text-gray-700">
+                    <span class="text-2xl">ℹ️</span>
+                    <span class="text-xs font-medium">About</span>
+                  </button>
+                </div>
+              </div>
+              
+              <!-- Settings Content -->
+              <div class="p-6 space-y-6">
+                <!-- Theme Section -->
+                <div>
+                  <h4 class="text-sm font-semibold text-gray-900 mb-3">Theme</h4>
+                  <div class="flex gap-4">
+                    <label class="flex-1 cursor-pointer">
+                      <div class="p-4 rounded-xl border-2 border-blue-500 bg-blue-50 flex flex-col items-center gap-2">
+                        <div class="w-12 h-8 rounded-md bg-white border border-gray-200 shadow-sm"></div>
+                        <span class="text-xs font-medium text-blue-600">Light</span>
+                      </div>
+                    </label>
+                    <label class="flex-1 cursor-pointer">
+                      <div class="p-4 rounded-xl border-2 border-gray-200 hover:border-gray-300 flex flex-col items-center gap-2">
+                        <div class="w-12 h-8 rounded-md bg-gray-800 border border-gray-600 shadow-sm"></div>
+                        <span class="text-xs font-medium text-gray-600">Dark</span>
+                      </div>
+                    </label>
+                    <label class="flex-1 cursor-pointer">
+                      <div class="p-4 rounded-xl border-2 border-gray-200 hover:border-gray-300 flex flex-col items-center gap-2">
+                        <div class="w-12 h-8 rounded-md bg-gradient-to-r from-white to-gray-800 border border-gray-300 shadow-sm"></div>
+                        <span class="text-xs font-medium text-gray-600">Auto</span>
+                      </div>
+                    </label>
+                  </div>
+                </div>
+                
+                <!-- Sidebar Section -->
+                <div>
+                  <h4 class="text-sm font-semibold text-gray-900 mb-3">Sidebar</h4>
+                  <div class="bg-gray-50 rounded-lg p-3">
+                    <label class="flex items-center justify-between cursor-pointer">
+                      <span class="text-sm text-gray-700">Compact sidebar mode</span>
+                      <div class="w-10 h-6 bg-gray-300 rounded-full relative">
+                        <span class="absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform"></span>
+                      </div>
+                    </label>
+                  </div>
+                </div>
+                
+                <!-- Messages Section -->
+                <div>
+                  <h4 class="text-sm font-semibold text-gray-900 mb-3">Messages</h4>
+                  <div class="bg-gray-50 rounded-lg p-3 space-y-3">
+                    <label class="flex items-center justify-between cursor-pointer">
+                      <span class="text-sm text-gray-700">Show timestamps</span>
+                      <div class="w-10 h-6 bg-blue-500 rounded-full relative">
+                        <span class="absolute top-0.5 right-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform"></span>
+                      </div>
+                    </label>
+                    <label class="flex items-center justify-between cursor-pointer">
+                      <span class="text-sm text-gray-700">Group consecutive messages</span>
+                      <div class="w-10 h-6 bg-blue-500 rounded-full relative">
+                        <span class="absolute top-0.5 right-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform"></span>
+                      </div>
+                    </label>
+                  </div>
+                </div>
+              </div>
+              
+            </div>
+          </div>
+        </div>
+        
+      </div>
+    </section>
+
+    <!-- Summary -->
+    <section class="mb-12 bg-gradient-to-br from-green-500 to-emerald-600 rounded-2xl p-8 text-white">
+      <h2 class="text-2xl font-bold mb-6">✅ All Fixes Implemented!</h2>
+      <div class="grid md:grid-cols-3 gap-4">
+        <div class="bg-white/20 rounded-xl p-4 backdrop-blur-sm">
+          <div class="text-3xl font-bold">9</div>
+          <div class="text-sm opacity-80">Fixes Applied</div>
+          <div class="mt-2 text-xs">All issues resolved</div>
+        </div>
+        <div class="bg-white/20 rounded-xl p-4 backdrop-blur-sm">
+          <div class="text-3xl font-bold">10</div>
+          <div class="text-sm opacity-80">Files Modified</div>
+          <div class="mt-2 text-xs">Sidebar, Header, MainLayout, MessageBubble, TypingIndicator, ChatView, ContactsModal, electron/main.js, preload.js, types</div>
+        </div>
+        <div class="bg-white/20 rounded-xl p-4 backdrop-blur-sm">
+          <div class="text-3xl font-bold">0</div>
+          <div class="text-sm opacity-80">Remaining</div>
+          <div class="mt-2 text-sm">All done! 🎉</div>
+        </div>
+      </div>
+    </section>
+
+    <footer class="text-center text-gray-500 text-sm py-8 border-t border-gray-200">
+      iOS Agent Messenger - All Fixes Preview | Generated by OpenHands
+    </footer>
+  </div>
+</body>
+</html>

@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { ChevronDown, ChevronRight, Copy, Check, AlertCircle } from 'lucide-react';
-import type { Message, MessageStatus, SubAgentResult } from '../../types/message';
+import type { Message, SubAgentResult } from '../../types/message';
 import { formatTime } from '../../utils/formatters';
 import { cn } from '../../utils/cn';
 
@@ -89,13 +89,12 @@ export function MessageBubble({ message, showAvatar = true, showName = true }: M
           </div>
         )}
 
-        {/* Timestamp & status */}
+        {/* Timestamp */}
         <div className={cn(
           'flex items-center gap-1 mt-1 text-xs text-ios-text-secondary',
           isUser ? 'mr-3' : 'ml-3'
         )}>
           <span>{formatTime(new Date(message.timestamp))}</span>
-          {isUser && <MessageStatusIcon status={message.status} />}
         </div>
       </div>
     </div>
@@ -188,42 +187,4 @@ function SubAgentResultCard({ result }: { result: SubAgentResult }) {
       )}
     </div>
   );
-}
-
-function MessageStatusIcon({ status }: { status: MessageStatus }) {
-  switch (status) {
-    case 'sending':
-      return (
-        <>
-          <span className="sr-only">Sending</span>
-          <span className="w-3 h-3 border border-ios-text-secondary rounded-full border-t-transparent animate-spin" />
-        </>
-      );
-    case 'sent':
-      return (
-        <>
-          <span className="sr-only">Sent</span>
-          <Check size={12} />
-        </>
-      );
-    case 'delivered':
-      return (
-        <>
-          <span className="sr-only">Delivered</span>
-          <span className="flex -space-x-1">
-            <Check size={12} />
-            <Check size={12} />
-          </span>
-        </>
-      );
-    case 'error':
-      return (
-        <>
-          <span className="sr-only">Error</span>
-          <AlertCircle size={12} className="text-red-500" />
-        </>
-      );
-    default:
-      return null;
-  }
 }

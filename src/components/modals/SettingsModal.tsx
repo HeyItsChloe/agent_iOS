@@ -1,7 +1,6 @@
 import { useState, useEffect, useMemo } from 'react';
-import { Modal, ModalFooter } from './Modal';
 import { useSettingsStore } from '../../stores/settingsStore';
-import { Moon, Sun, Monitor, Key, Server, Info, CheckCircle, XCircle, Loader2 } from 'lucide-react';
+import { Key, Info, CheckCircle, XCircle, Loader2 } from 'lucide-react';
 import { cn } from '../../utils/cn';
 import type { ModelConfig, LLMSettings, TestConnectionResult, SDKStatus } from '../../api/client';
 
@@ -9,74 +8,88 @@ interface SettingsModalProps {
   onClose: () => void;
 }
 
-type SettingsTab = 'appearance' | 'llm' | 'about';
+type SettingsTab = 'appearance' | 'llm' | 'advanced' | 'about';
 
 export function SettingsModal({ onClose }: SettingsModalProps) {
   const [activeTab, setActiveTab] = useState<SettingsTab>('appearance');
 
   return (
-    <Modal isOpen={true} onClose={onClose} title="Settings" size="lg">
-      {/* Tabs */}
-      <div className="flex border-b border-ios-separator">
-        <TabButton
-          active={activeTab === 'appearance'}
-          onClick={() => setActiveTab('appearance')}
-          icon={<Sun size={18} />}
-          label="Appearance"
-        />
-        <TabButton
-          active={activeTab === 'llm'}
-          onClick={() => setActiveTab('llm')}
-          icon={<Key size={18} />}
-          label="LLM Config"
-        />
-        <TabButton
-          active={activeTab === 'about'}
-          onClick={() => setActiveTab('about')}
-          icon={<Info size={18} />}
-          label="About"
-        />
-      </div>
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+      <div className="bg-ios-card rounded-xl shadow-2xl overflow-hidden border border-ios-separator" style={{ width: '600px', maxWidth: '95vw' }}>
+        
+        {/* macOS Window Titlebar */}
+        <div className="h-12 bg-gradient-to-b from-gray-100 to-gray-200 dark:from-gray-700 dark:to-gray-800 border-b border-ios-separator flex items-center px-4 gap-2">
+          <div className="flex gap-2">
+            <button onClick={onClose} className="w-3 h-3 rounded-full bg-red-500 hover:bg-red-600 transition-colors" />
+            <div className="w-3 h-3 rounded-full bg-yellow-500" />
+            <div className="w-3 h-3 rounded-full bg-green-500" />
+          </div>
+          <div className="flex-1 text-center text-sm font-medium text-ios-text">Settings</div>
+        </div>
+        
+        {/* Toolbar with icons (macOS System Preferences style) */}
+        <div className="bg-gradient-to-b from-gray-50 to-gray-100 dark:from-gray-800 dark:to-gray-900 border-b border-ios-separator p-3">
+          <div className="flex justify-center gap-4">
+            <ToolbarButton
+              active={activeTab === 'appearance'}
+              onClick={() => setActiveTab('appearance')}
+              icon="🎨"
+              label="Appearance"
+            />
+            <ToolbarButton
+              active={activeTab === 'llm'}
+              onClick={() => setActiveTab('llm')}
+              icon="🔑"
+              label="LLM Config"
+            />
+            <ToolbarButton
+              active={activeTab === 'advanced'}
+              onClick={() => setActiveTab('advanced')}
+              icon="⚙️"
+              label="Advanced"
+            />
+            <ToolbarButton
+              active={activeTab === 'about'}
+              onClick={() => setActiveTab('about')}
+              icon="ℹ️"
+              label="About"
+            />
+          </div>
+        </div>
 
-      {/* Tab content */}
-      <div className="p-4">
-        {activeTab === 'appearance' && <AppearanceSettings />}
-        {activeTab === 'llm' && <LLMSettingsPanel />}
-        {activeTab === 'about' && <AboutSection />}
-      </div>
+        {/* Tab content */}
+        <div className="p-6 max-h-96 overflow-y-auto">
+          {activeTab === 'appearance' && <AppearanceSettings />}
+          {activeTab === 'llm' && <LLMSettingsPanel />}
+          {activeTab === 'advanced' && <AdvancedSettings />}
+          {activeTab === 'about' && <AboutSection />}
+        </div>
 
-      <ModalFooter>
-        <button
-          onClick={onClose}
-          className="px-6 py-2 bg-ios-blue text-white rounded-lg font-medium hover:bg-blue-600 transition-colors"
-        >
-          Done
-        </button>
-      </ModalFooter>
-    </Modal>
+      </div>
+    </div>
   );
 }
 
-interface TabButtonProps {
+interface ToolbarButtonProps {
   active: boolean;
   onClick: () => void;
-  icon: React.ReactNode;
+  icon: string;
   label: string;
 }
 
-function TabButton({ active, onClick, icon, label }: TabButtonProps) {
+function ToolbarButton({ active, onClick, icon, label }: ToolbarButtonProps) {
   return (
     <button
       onClick={onClick}
       className={cn(
-        'flex-1 flex items-center justify-center gap-2 px-4 py-3 text-sm font-medium transition-colors border-b-2',
+        'flex flex-col items-center gap-1 px-4 py-2 rounded-lg transition-colors',
         active
-          ? 'text-ios-blue border-ios-blue'
-          : 'text-ios-text-secondary border-transparent hover:text-ios-text'
+          ? 'bg-ios-blue text-white'
+          : 'text-ios-text hover:bg-ios-secondary'
       )}
     >
-      {icon}
-      {label}
+      <span className="text-2xl">{icon}</span>
+      <span className="text-xs font-medium">{label}</span>
     </button>
   );
 }
@@ -91,63 +104,99 @@ function AppearanceSettings() {
     setShowTimestamps 
   } = useSettingsStore();
 
-  const themes: Array<{ id: 'light' | 'dark' | 'system'; icon: React.ReactNode; label: string }> = [
-    { id: 'light', icon: <Sun size={20} />, label: 'Light' },
-    { id: 'dark', icon: <Moon size={20} />, label: 'Dark' },
-    { id: 'system', icon: <Monitor size={20} />, label: 'System' },
-  ];
-
   return (
     <div className="space-y-6">
       {/* Theme */}
       <div>
-        <h3 className="text-sm font-medium text-ios-text mb-3">Theme</h3>
-        <div className="grid grid-cols-3 gap-3">
-          {themes.map(t => (
-            <button
-              key={t.id}
-              onClick={() => setTheme(t.id)}
-              className={cn(
-                'p-4 rounded-xl border-2 flex flex-col items-center gap-2 transition-all',
-                theme === t.id
-                  ? 'border-ios-blue bg-ios-blue/10'
-                  : 'border-ios-separator hover:border-ios-blue/50'
-              )}
-            >
-              <div className={cn(
-                'w-10 h-10 rounded-full flex items-center justify-center',
-                theme === t.id ? 'bg-ios-blue text-white' : 'bg-ios-secondary text-ios-text-secondary'
-              )}>
-                {t.icon}
-              </div>
-              <span className="text-sm text-ios-text">{t.label}</span>
-            </button>
-          ))}
+        <h4 className="text-sm font-semibold text-ios-text mb-3">Theme</h4>
+        <div className="flex gap-4">
+          <label className="flex-1 cursor-pointer">
+            <input type="radio" name="theme" className="sr-only" checked={theme === 'light'} onChange={() => setTheme('light')} />
+            <div className={cn(
+              'p-4 rounded-xl border-2 flex flex-col items-center gap-2 transition-all',
+              theme === 'light' ? 'border-ios-blue bg-ios-blue/10' : 'border-ios-separator hover:border-ios-blue/50'
+            )}>
+              <div className="w-12 h-8 rounded-md bg-white border border-gray-200 shadow-sm" />
+              <span className={cn('text-xs font-medium', theme === 'light' ? 'text-ios-blue' : 'text-ios-text-secondary')}>Light</span>
+            </div>
+          </label>
+          <label className="flex-1 cursor-pointer">
+            <input type="radio" name="theme" className="sr-only" checked={theme === 'dark'} onChange={() => setTheme('dark')} />
+            <div className={cn(
+              'p-4 rounded-xl border-2 flex flex-col items-center gap-2 transition-all',
+              theme === 'dark' ? 'border-ios-blue bg-ios-blue/10' : 'border-ios-separator hover:border-ios-blue/50'
+            )}>
+              <div className="w-12 h-8 rounded-md bg-gray-800 border border-gray-600 shadow-sm" />
+              <span className={cn('text-xs font-medium', theme === 'dark' ? 'text-ios-blue' : 'text-ios-text-secondary')}>Dark</span>
+            </div>
+          </label>
+          <label className="flex-1 cursor-pointer">
+            <input type="radio" name="theme" className="sr-only" checked={theme === 'system'} onChange={() => setTheme('system')} />
+            <div className={cn(
+              'p-4 rounded-xl border-2 flex flex-col items-center gap-2 transition-all',
+              theme === 'system' ? 'border-ios-blue bg-ios-blue/10' : 'border-ios-separator hover:border-ios-blue/50'
+            )}>
+              <div className="w-12 h-8 rounded-md bg-gradient-to-r from-white to-gray-800 border border-gray-300 shadow-sm" />
+              <span className={cn('text-xs font-medium', theme === 'system' ? 'text-ios-blue' : 'text-ios-text-secondary')}>Auto</span>
+            </div>
+          </label>
         </div>
       </div>
 
       {/* Sidebar */}
       <div>
-        <h3 className="text-sm font-medium text-ios-text mb-3">Sidebar</h3>
-        <label className="flex items-center justify-between p-3 bg-ios-secondary rounded-xl cursor-pointer">
-          <span className="text-ios-text">Collapsed sidebar</span>
-          <ToggleSwitch
-            checked={compactMode}
-            onChange={setCompactMode}
-          />
-        </label>
+        <h4 className="text-sm font-semibold text-ios-text mb-3">Sidebar</h4>
+        <div className="bg-ios-secondary rounded-lg p-3">
+          <label className="flex items-center justify-between cursor-pointer">
+            <span className="text-sm text-ios-text">Compact sidebar mode</span>
+            <ToggleSwitch checked={compactMode} onChange={setCompactMode} />
+          </label>
+        </div>
       </div>
 
-      {/* Message grouping */}
+      {/* Messages */}
       <div>
-        <h3 className="text-sm font-medium text-ios-text mb-3">Messages</h3>
-        <label className="flex items-center justify-between p-3 bg-ios-secondary rounded-xl cursor-pointer">
-          <span className="text-ios-text">Group consecutive messages</span>
-          <ToggleSwitch
-            checked={showTimestamps}
-            onChange={setShowTimestamps}
-          />
-        </label>
+        <h4 className="text-sm font-semibold text-ios-text mb-3">Messages</h4>
+        <div className="bg-ios-secondary rounded-lg p-3 space-y-3">
+          <label className="flex items-center justify-between cursor-pointer">
+            <span className="text-sm text-ios-text">Show timestamps</span>
+            <ToggleSwitch checked={showTimestamps} onChange={setShowTimestamps} />
+          </label>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function AdvancedSettings() {
+  return (
+    <div className="space-y-6">
+      <div>
+        <h4 className="text-sm font-semibold text-ios-text mb-3">Data Management</h4>
+        <div className="bg-ios-secondary rounded-lg p-3 space-y-3">
+          <div className="flex items-center justify-between">
+            <div>
+              <span className="text-sm text-ios-text block">Clear conversation history</span>
+              <span className="text-xs text-ios-text-secondary">Delete all messages and conversations</span>
+            </div>
+            <button className="px-3 py-1.5 text-sm text-red-500 hover:bg-red-500/10 rounded-md transition-colors">
+              Clear
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <div>
+        <h4 className="text-sm font-semibold text-ios-text mb-3">Developer</h4>
+        <div className="bg-ios-secondary rounded-lg p-3 space-y-3">
+          <label className="flex items-center justify-between cursor-pointer">
+            <div>
+              <span className="text-sm text-ios-text block">Debug mode</span>
+              <span className="text-xs text-ios-text-secondary">Show detailed logs in console</span>
+            </div>
+            <ToggleSwitch checked={false} onChange={() => {}} />
+          </label>
+        </div>
       </div>
     </div>
   );

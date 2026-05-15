@@ -110,6 +110,12 @@ function createAppMenu() {
       submenu: [
         { role: 'about' },
         { type: 'separator' },
+        {
+          label: 'Preferences...',
+          accelerator: 'CmdOrCtrl+,',
+          click: () => mainWindow?.webContents.send('menu-open-settings'),
+        },
+        { type: 'separator' },
         { role: 'services' },
         { type: 'separator' },
         { role: 'hide' },
@@ -128,6 +134,14 @@ function createAppMenu() {
           click: () => mainWindow?.webContents.send('menu-new-conversation'),
         },
         { type: 'separator' },
+        ...(process.platform !== 'darwin' ? [
+          {
+            label: 'Preferences...',
+            accelerator: 'CmdOrCtrl+,',
+            click: () => mainWindow?.webContents.send('menu-open-settings'),
+          },
+          { type: 'separator' },
+        ] : []),
         { role: process.platform === 'darwin' ? 'close' : 'quit' },
       ],
     },
@@ -141,6 +155,22 @@ function createAppMenu() {
         { role: 'copy' },
         { role: 'paste' },
         { role: 'selectAll' },
+      ],
+    },
+    {
+      label: 'Contacts',
+      submenu: [
+        {
+          label: 'View All Agents',
+          accelerator: 'CmdOrCtrl+Shift+A',
+          click: () => mainWindow?.webContents.send('menu-show-contacts'),
+        },
+        { type: 'separator' },
+        {
+          label: 'New Agent...',
+          accelerator: 'CmdOrCtrl+Shift+N',
+          click: () => mainWindow?.webContents.send('menu-new-agent'),
+        },
       ],
     },
     {
