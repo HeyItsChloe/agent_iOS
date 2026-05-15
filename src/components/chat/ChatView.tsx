@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { MessageBubble } from './MessageBubble';
 import { ChatInput } from './ChatInput';
+import { GitToolbar } from './GitToolbar';
 import { TypingIndicator, MultiAgentTyping } from './TypingIndicator';
 import { useConversationStore, useActiveConversation } from '../../stores/conversationStore';
 import { useAgentStore } from '../../stores/agentStore';
@@ -192,11 +193,20 @@ export function ChatView() {
             messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
             setAutoScroll(true);
           }}
-          className="absolute bottom-20 right-4 w-10 h-10 bg-ios-card border border-ios-separator rounded-full shadow-lg flex items-center justify-center text-ios-blue hover:bg-ios-secondary transition-colors"
+          className="absolute bottom-32 right-4 w-10 h-10 bg-ios-card border border-ios-separator rounded-full shadow-lg flex items-center justify-center text-ios-blue hover:bg-ios-secondary transition-colors"
         >
           ↓
         </button>
       )}
+
+      {/* Git toolbar */}
+      <GitToolbar
+        onGitCommand={(command) => {
+          // Send git command as a message to the agent
+          handleSendMessage(command);
+        }}
+        disabled={!connected}
+      />
 
       {/* Input area */}
       <ChatInput
