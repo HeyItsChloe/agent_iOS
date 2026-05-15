@@ -99,7 +99,11 @@ export function ChatView() {
     );
   }
 
-  const messages = activeConversation.messages || [];
+  // Sort messages by timestamp to ensure correct chronological order
+  // (responses may arrive after multiple prompts are sent)
+  const messages = [...(activeConversation.messages || [])].sort(
+    (a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()
+  );
   const agentsArray = Array.from(agents.values());
   const typingAgentsList = typingAgents.map(id => {
     const agent = agentsArray.find(a => a.id === id);
