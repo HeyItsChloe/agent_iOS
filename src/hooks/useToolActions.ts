@@ -5,10 +5,13 @@
 
 import { useCallback } from 'react';
 import { ToolActionId, TOOL_ACTIONS } from '../types/tool-actions';
+import { settingsApi } from '../api/client';
 
 interface UseToolActionsOptions {
   /** Callback to send a message to the agent */
   onSendMessage?: (content: string) => void;
+  /** Current conversation ID */
+  conversationId?: string;
 }
 
 interface ToolActionResult {
@@ -17,7 +20,7 @@ interface ToolActionResult {
 }
 
 export function useToolActions(options: UseToolActionsOptions = {}) {
-  const { onSendMessage } = options;
+  const { onSendMessage, conversationId } = options;
 
   /**
    * Check if running in Electron environment.
@@ -36,6 +39,23 @@ export function useToolActions(options: UseToolActionsOptions = {}) {
 
       try {
         switch (actionId) {
+          case 'open-vscode':
+            // Open VS Code via backend API
+            try {
+              const response = await settingsApi.openVSCode({
+                conversation_id: conversationId,
+              });
+              if (response.success) {
+                return { success: true };
+              }
+              return { success: false, error: response.message };
+            } catch (error) {
+              return { 
+                success: false, 
+                error: error instanceof Error ? error.message : 'Failed to open VS Code' 
+              };
+            }
+
           case 'open-terminal':
             if (isElectron && window.electronAPI?.openTerminal) {
               await window.electronAPI.openTerminal();
@@ -76,7 +96,7 @@ export function useToolActions(options: UseToolActionsOptions = {}) {
         };
       }
     },
-    [isElectron, onSendMessage]
+    [isElectron, onSendMessage, conversationId]
   );
 
   return {

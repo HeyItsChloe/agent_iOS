@@ -212,6 +212,7 @@ export function ChatView() {
       <ChatInput
         onSend={handleSendMessage}
         agentIds={activeConversation.agentIds}
+        conversationId={activeConversation.id}
         placeholder={
           activeConversation.agentIds.length > 1
             ? 'Message (use @ to mention an agent)'

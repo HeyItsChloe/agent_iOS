@@ -5,6 +5,7 @@
 
 export type ToolActionId =
   | 'open-terminal'
+  | 'open-vscode'
   | 'show-github-diff'
   | 'show-task-list'
   | 'run-app-browser';
@@ -31,6 +32,14 @@ export interface ToolAction {
  * Actions are shown in the dropdown if their toolId is enabled for the conversation's agent.
  */
 export const TOOL_ACTIONS: ToolAction[] = [
+  {
+    id: 'open-vscode',
+    toolId: '_always', // Special: always available
+    label: 'Open in VS Code',
+    icon: '💻',
+    description: 'Open workspace in new VS Code window',
+    electronOnly: false,
+  },
   {
     id: 'open-terminal',
     toolId: 'terminal',
@@ -74,7 +83,8 @@ export function getAvailableToolActions(
   isElectron: boolean
 ): ToolAction[] {
   return TOOL_ACTIONS.filter((action) => {
-    const toolEnabled = enabledToolIds.includes(action.toolId);
+    // Special '_always' toolId means always show this action
+    const toolEnabled = action.toolId === '_always' || enabledToolIds.includes(action.toolId);
     const platformSupported = !action.electronOnly || isElectron;
     return toolEnabled && platformSupported;
   });

@@ -367,6 +367,69 @@ async def update_preferences(request: PreferencesRequest):
     )
 
 
+class OpenVSCodeRequest(BaseModel):
+    """Request model for opening VS Code."""
+    workspace_path: Optional[str] = None  # If not provided, uses default workspace
+    conversation_id: Optional[str] = None  # Associate workspace with conversation
+
+
+class OpenVSCodeResponse(BaseModel):
+    """Response model for opening VS Code."""
+    success: bool
+    workspace_path: str
+    message: str
+
+
+@router.post("/open-vscode", response_model=OpenVSCodeResponse)
+async def open_vscode(request: OpenVSCodeRequest):
+    """Open VS Code in a new window with the specified workspace.
+    
+    If conversation_id is provided, updates the conversation's workspace.
+    """
+    import subprocess
+    import os
+    
+    # Determine workspace path
+    workspace_path = request.workspace_path or str(settings.default_workspace)
+    
+    # Ensure path exists
+    if not os.path.exists(workspace_path):
+        os.makedirs(workspace_path, exist_ok=True)
+    
+    try:
+        # Open VS Code in a new window (-n flag)
+        subprocess.Popen(
+            ["code", "-n", workspace_path],
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+        )
+        
+        # Update conversation workspace if provided
+        if request.conversation_id:
+            from app.services.conversation_service import conversation_service
+            conv = conversation_service._conversations.get(request.conversation_id)
+            if conv:
+                # Store the workspace path in conversation metadata
+                conv.metadata = conv.metadata or {}
+                conv.metadata["workspace_path"] = workspace_path
+        
+        return OpenVSCodeResponse(
+            success=True,
+            workspace_path=workspace_path,
+            message=f"VS Code opened at {workspace_path}",
+        )
+    except FileNotFoundError:
+        raise HTTPException(
+            status_code=500,
+            detail="VS Code 'code' command not found. Please install VS Code and add it to PATH.",
+        )
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to open VS Code: {str(e)}",
+        )
+
+
 @router.get("/sdk-status", response_model=SDKStatusResponse)
 async def get_sdk_status():
     """Get OpenHands SDK availability status and provider configuration."""

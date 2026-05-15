@@ -202,6 +202,17 @@ export interface Preferences {
   block_agent_git_actions: boolean;
 }
 
+export interface OpenVSCodeRequest {
+  workspace_path?: string;
+  conversation_id?: string;
+}
+
+export interface OpenVSCodeResponse {
+  success: boolean;
+  workspace_path: string;
+  message: string;
+}
+
 export const settingsApi = {
   getLLM: () => request<LLMSettings>('/settings/llm'),
   
@@ -236,6 +247,12 @@ export const settingsApi = {
     request<Preferences>('/settings/preferences', {
       method: 'POST',
       body: JSON.stringify(data),
+    }),
+  
+  openVSCode: (data?: OpenVSCodeRequest) =>
+    request<OpenVSCodeResponse>('/settings/open-vscode', {
+      method: 'POST',
+      body: JSON.stringify(data || {}),
     }),
 };
 

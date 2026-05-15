@@ -12,13 +12,15 @@ interface ChatInputProps {
   disabled?: boolean;
   placeholder?: string;
   agentIds?: string[];
+  conversationId?: string;
 }
 
 export function ChatInput({ 
   onSend, 
   disabled = false, 
   placeholder = 'Message',
-  agentIds = []
+  agentIds = [],
+  conversationId
 }: ChatInputProps) {
   const [content, setContent] = useState('');
   const [showMentions, setShowMentions] = useState(false);
@@ -38,6 +40,7 @@ export function ChatInput({
   // Tool actions hook - pass onSend as the message handler
   const { executeToolAction, isElectron } = useToolActions({
     onSendMessage: (msg) => onSend(msg),
+    conversationId,
   });
 
   // Get enabled tools from active agents
