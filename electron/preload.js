@@ -61,6 +61,17 @@ contextBridge.exposeInMainWorld('electronAPI', {
     ipcRenderer.on('menu-new-agent', listener);
     return () => ipcRenderer.removeListener('menu-new-agent', listener);
   },
+
+  // ==================== Tool Actions ====================
+  
+  // Open terminal in project directory
+  openTerminal: () => ipcRenderer.invoke('tool:open-terminal'),
+  
+  // Open GitHub Desktop to show diff
+  openGitHubDesktop: () => ipcRenderer.invoke('tool:open-github-desktop'),
+  
+  // Start dev server and open browser
+  runAppInBrowser: () => ipcRenderer.invoke('tool:run-app-browser'),
 });
 
 // Type definitions for TypeScript are in src/types/electron.d.ts

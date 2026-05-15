@@ -403,6 +403,136 @@ ipcMain.handle('show-save-dialog', async (event, options) => {
   return result;
 });
 
+// ==================== Tool Action IPC Handlers ====================
+
+/**
+ * Get the current workspace directory.
+ * In development, uses the project root. In production, could be user-configurable.
+ */
+function getWorkspaceDir() {
+  // Use WORKSPACE_DIR env var if set, otherwise use current working directory
+  return process.env.WORKSPACE_DIR || process.cwd();
+}
+
+/**
+ * Tool: Open Terminal in project directory.
+ * Opens the native terminal application at the workspace path.
+ */
+ipcMain.handle('tool:open-terminal', async () => {
+  const workspaceDir = getWorkspaceDir();
+  console.log(`[Tool] Opening terminal at: ${workspaceDir}`);
+
+  try {
+    if (process.platform === 'darwin') {
+      // macOS - Open Terminal.app or iTerm if available
+      // Try iTerm first, fall back to Terminal.app
+      try {
+        spawn('open', ['-a', 'iTerm', workspaceDir]);
+      } catch {
+        spawn('open', ['-a', 'Terminal', workspaceDir]);
+      }
+    } else if (process.platform === 'win32') {
+      // Windows - Open Windows Terminal or cmd
+      spawn('cmd.exe', ['/c', 'start', 'cmd', '/k', `cd /d "${workspaceDir}"`], { shell: true });
+    } else {
+      // Linux - Try common terminal emulators
+      const terminals = ['gnome-terminal', 'konsole', 'xterm', 'x-terminal-emulator'];
+      for (const term of terminals) {
+        try {
+          spawn(term, ['--working-directory', workspaceDir], { detached: true });
+          break;
+        } catch {
+          continue;
+        }
+      }
+    }
+    return { success: true };
+  } catch (error) {
+    console.error('[Tool] Failed to open terminal:', error);
+    return { success: false, error: error.message };
+  }
+});
+
+/**
+ * Tool: Open GitHub Desktop to show diff.
+ * Opens GitHub Desktop application at the repository path.
+ */
+ipcMain.handle('tool:open-github-desktop', async () => {
+  const workspaceDir = getWorkspaceDir();
+  console.log(`[Tool] Opening GitHub Desktop at: ${workspaceDir}`);
+
+  try {
+    if (process.platform === 'darwin') {
+      // macOS - Open GitHub Desktop
+      spawn('open', ['-a', 'GitHub Desktop', workspaceDir]);
+    } else if (process.platform === 'win32') {
+      // Windows - Open GitHub Desktop via command
+      spawn('cmd', ['/c', 'github', workspaceDir], { shell: true });
+    } else {
+      // Linux - GitHub Desktop is available as a third-party app
+      spawn('github-desktop', [workspaceDir], { detached: true });
+    }
+    return { success: true };
+  } catch (error) {
+    console.error('[Tool] Failed to open GitHub Desktop:', error);
+    return { success: false, error: error.message };
+  }
+});
+
+/**
+ * Tool: Run app and open in browser.
+ * Starts the dev server and opens Chrome/default browser to localhost.
+ */
+ipcMain.handle('tool:run-app-browser', async () => {
+  const workspaceDir = getWorkspaceDir();
+  const port = process.env.DEV_SERVER_PORT || 5173; // Default Vite port
+  const url = `http://localhost:${port}`;
+
+  console.log(`[Tool] Starting dev server at: ${workspaceDir}`);
+  console.log(`[Tool] Will open browser to: ${url}`);
+
+  try {
+    // Start the dev server
+    const devServer = spawn('npm', ['run', 'dev'], {
+      cwd: workspaceDir,
+      shell: true,
+      detached: true,
+      stdio: 'ignore', // Don't pipe stdio to avoid blocking
+    });
+
+    // Unref so the parent process can exit independently
+    devServer.unref();
+
+    // Wait a bit for the server to start
+    await new Promise((resolve) => setTimeout(resolve, 3000));
+
+    // Open browser
+    if (process.platform === 'darwin') {
+      // macOS - Try Chrome first, fall back to default
+      try {
+        spawn('open', ['-a', 'Google Chrome', url]);
+      } catch {
+        shell.openExternal(url);
+      }
+    } else if (process.platform === 'win32') {
+      // Windows - Try Chrome first
+      try {
+        spawn('cmd', ['/c', 'start', 'chrome', url], { shell: true });
+      } catch {
+        shell.openExternal(url);
+      }
+    } else {
+      // Linux
+      shell.openExternal(url);
+    }
+
+    return { success: true, url, pid: devServer.pid };
+  } catch (error) {
+    console.error('[Tool] Failed to run app in browser:', error);
+    return { success: false, error: error.message };
+  }
+});
+
 // App lifecycle
 app.whenReady().then(async () => {
   // Show splash screen

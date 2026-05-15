@@ -2,6 +2,13 @@
  * Type definitions for Electron IPC bridge.
  */
 
+export interface ToolActionResult {
+  success: boolean;
+  error?: string;
+  url?: string;
+  pid?: number;
+}
+
 export interface ElectronAPI {
   /** Get the backend API URL */
   getBackendUrl: () => Promise<string>;
@@ -47,6 +54,17 @@ export interface ElectronAPI {
   
   /** Listen for new agent menu trigger */
   onMenuNewAgent: (callback: () => void) => () => void;
+
+  // ==================== Tool Actions ====================
+
+  /** Open terminal in project directory */
+  openTerminal: () => Promise<ToolActionResult>;
+
+  /** Open GitHub Desktop to show diff */
+  openGitHubDesktop: () => Promise<ToolActionResult>;
+
+  /** Start dev server and open browser */
+  runAppInBrowser: () => Promise<ToolActionResult>;
 }
 
 declare global {

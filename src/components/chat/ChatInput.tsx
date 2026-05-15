@@ -1,7 +1,10 @@
-import { useState, useRef, useEffect, KeyboardEvent } from 'react';
-import { Send, Paperclip, Mic, AtSign, X } from 'lucide-react';
+import { useState, useRef, useEffect, KeyboardEvent, useMemo } from 'react';
+import { Send, Mic, AtSign, X } from 'lucide-react';
 import { useAgentStore } from '../../stores/agentStore';
 import { cn } from '../../utils/cn';
+import { ToolsDropdown } from './ToolsDropdown';
+import { useToolActions } from '../../hooks/useToolActions';
+import { ToolActionId } from '../../types/tool-actions';
 
 interface ChatInputProps {
   onSend: (content: string, mentionAgentId?: string) => void;
@@ -22,6 +25,29 @@ export function ChatInput({
   const [selectedMention, setSelectedMention] = useState<string | null>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const { agents } = useAgentStore();
+
+  // Tool actions hook - pass onSend as the message handler
+  const { executeToolAction, isElectron } = useToolActions({
+    onSendMessage: (msg) => onSend(msg),
+  });
+
+  // Get enabled tools from active agents
+  const enabledToolIds = useMemo(() => {
+    const toolSet = new Set<string>();
+    agentIds.forEach((agentId) => {
+      const agent = agents.get(agentId);
+      agent?.toolIds?.forEach((toolId) => toolSet.add(toolId));
+    });
+    return Array.from(toolSet);
+  }, [agentIds, agents]);
+
+  // Handle tool action from dropdown
+  const handleToolAction = async (actionId: ToolActionId) => {
+    const result = await executeToolAction(actionId);
+    if (!result.success && result.error) {
+      console.error(`Tool action failed: ${result.error}`);
+    }
+  };
   
   // Convert Map to array for filtering
   const agentsArray = Array.from(agents.values());
@@ -174,13 +200,13 @@ export function ChatInput({
 
       {/* Input area */}
       <div className="flex items-end gap-2">
-        {/* Attachment button */}
-        <button
-          className="w-9 h-9 rounded-full flex items-center justify-center text-ios-blue hover:bg-ios-secondary transition-colors flex-shrink-0"
+        {/* Tools dropdown (iOS-style + button) */}
+        <ToolsDropdown
+          enabledToolIds={enabledToolIds}
+          onToolAction={handleToolAction}
+          isElectron={isElectron}
           disabled={disabled}
-        >
-          <Paperclip size={20} />
-        </button>
+        />
 
         {/* Text input */}
         <div className="flex-1 relative">
