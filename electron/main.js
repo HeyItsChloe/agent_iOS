@@ -468,16 +468,17 @@ ipcMain.handle('tool:open-terminal-vscode', async () => {
 
   try {
     if (process.platform === 'darwin') {
-      // macOS - Open VS Code, wait for window, open terminal, run openhands
-      execSync(`code "${workspaceDir}"`);
+      // macOS - Use open -a to launch VS Code (works without PATH issues)
+      // Then use AppleScript to wait for window and send keystrokes
       const script = `
+        do shell script "open -a 'Visual Studio Code' '${workspaceDir.replace(/'/g, "'\\''")}'"
         tell application "Visual Studio Code"
           activate
           repeat until (count of windows) > 0
             delay 0.1
           end repeat
         end tell
-        delay 0.3
+        delay 0.5
         tell application "System Events"
           keystroke "\`" using control down
           delay 0.3
@@ -487,13 +488,22 @@ ipcMain.handle('tool:open-terminal-vscode', async () => {
       `;
       execSync(`osascript -e '${script}'`);
     } else if (process.platform === 'win32') {
-      // Windows - Open VS Code and use sendkeys
-      execSync(`code "${workspaceDir}"`);
-      // Windows doesn't have easy scripting like AppleScript
-      // Just open VS Code, user can open terminal manually
+      // Windows - Try to find VS Code in common locations
+      const vscodePaths = [
+        process.env.LOCALAPPDATA + '\\Programs\\Microsoft VS Code\\Code.exe',
+        'C:\\Program Files\\Microsoft VS Code\\Code.exe',
+      ];
+      for (const codePath of vscodePaths) {
+        try {
+          spawn(codePath, [workspaceDir], { detached: true });
+          break;
+        } catch {
+          continue;
+        }
+      }
     } else {
       // Linux - Open VS Code
-      spawn('code', [workspaceDir], { detached: true });
+      spawn('code', [workspaceDir], { detached: true, env: { ...process.env, PATH: process.env.PATH + ':/usr/bin:/usr/local/bin' } });
     }
     return { success: true };
   } catch (error) {
