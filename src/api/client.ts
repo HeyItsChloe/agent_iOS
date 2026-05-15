@@ -199,6 +199,7 @@ export interface SDKStatus {
 
 export interface Preferences {
   quick_start_enabled: boolean;
+  block_agent_git_actions: boolean;
 }
 
 export const settingsApi = {

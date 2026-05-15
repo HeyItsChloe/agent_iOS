@@ -2,6 +2,7 @@ import { useState, useEffect, useMemo } from 'react';
 import { useSettingsStore } from '../../stores/settingsStore';
 import { Key, Info, CheckCircle, XCircle, Loader2, Server } from 'lucide-react';
 import { cn } from '../../utils/cn';
+import { settingsApi } from '../../api/client';
 import type { ModelConfig, LLMSettings, TestConnectionResult, SDKStatus } from '../../api/client';
 
 interface SettingsModalProps {
@@ -193,6 +194,18 @@ function AppearanceSettings() {
 
 function ToolbarSettingsPanel() {
   const { toolbar, setToolbarSetting } = useSettingsStore();
+  
+  const hasAnyGitButtonEnabled = toolbar.showCommit || toolbar.showPush || toolbar.showPull || toolbar.showBranch;
+  
+  const handleBlockAgentToggle = async (checked: boolean) => {
+    setToolbarSetting('blockAgentGitActions', checked);
+    // Sync to backend
+    try {
+      await settingsApi.updatePreferences({ block_agent_git_actions: checked });
+    } catch (error) {
+      console.error('Failed to sync block_agent_git_actions to backend:', error);
+    }
+  };
 
   return (
     <div className="space-y-6">
@@ -265,6 +278,34 @@ function ToolbarSettingsPanel() {
           </label>
         </div>
       </div>
+      
+      {/* Agent Restrictions */}
+      {hasAnyGitButtonEnabled && (
+        <div>
+          <h4 className="text-sm font-semibold text-ios-text mb-3">Agent Restrictions</h4>
+          <div className="bg-ios-secondary rounded-lg p-3">
+            <label className="flex items-center justify-between cursor-pointer">
+              <div className="flex items-center gap-2">
+                <span className="text-lg">🛡️</span>
+                <div>
+                  <span className="text-sm text-ios-text block">Block OpenHands from git actions</span>
+                  <span className="text-xs text-ios-text-secondary">Only you can push, pull, commit, or switch branches</span>
+                </div>
+              </div>
+              <ToggleSwitch 
+                checked={toolbar.blockAgentGitActions} 
+                onChange={handleBlockAgentToggle} 
+              />
+            </label>
+          </div>
+          {toolbar.blockAgentGitActions && (
+            <p className="text-xs text-ios-text-secondary mt-2 px-1">
+              ⚠️ When enabled, OpenHands cannot execute git commands automatically. 
+              Use the toolbar buttons or send a prompt to perform git actions yourself.
+            </p>
+          )}
+        </div>
+      )}
     </div>
   );
 }

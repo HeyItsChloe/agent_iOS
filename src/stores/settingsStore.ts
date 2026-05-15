@@ -10,6 +10,7 @@ interface ToolbarSettings {
   showPull: boolean;
   showCommit: boolean;
   showBranch: boolean;
+  blockAgentGitActions: boolean;
 }
 
 interface SettingsState {
@@ -71,6 +72,7 @@ const defaultToolbar: ToolbarSettings = {
   showPull: true,
   showCommit: true,
   showBranch: true,
+  blockAgentGitActions: false,
 };
 
 const initialState = {

@@ -32,6 +32,7 @@ class Settings(BaseSettings):
     
     # User Preferences
     quick_start_enabled: bool = False  # Skip agent/skill selection when starting new chat
+    block_agent_git_actions: bool = False  # Block OpenHands from executing git commands
     
     # Provider-specific API keys
     openhands_api_key: Optional[SecretStr] = None
@@ -99,6 +100,9 @@ class Settings(BaseSettings):
             if "quick_start_enabled" in data:
                 self.quick_start_enabled = data["quick_start_enabled"]
             
+            if "block_agent_git_actions" in data:
+                self.block_agent_git_actions = data["block_agent_git_actions"]
+            
             # Load API keys (only if not already set via env vars)
             if "openhands_api_key" in data and not self.openhands_api_key:
                 self.openhands_api_key = SecretStr(data["openhands_api_key"])
@@ -120,6 +124,7 @@ class Settings(BaseSettings):
         data = {
             "llm_model": self.llm_model,
             "quick_start_enabled": self.quick_start_enabled,
+            "block_agent_git_actions": self.block_agent_git_actions,
         }
         
         if self.llm_base_url:

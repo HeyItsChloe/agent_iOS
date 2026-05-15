@@ -36,6 +36,19 @@ except ImportError as e:
     OpenHandsCloudClient = None
 
 
+GIT_BLOCK_INSTRUCTION = """
+IMPORTANT RESTRICTION: You are NOT allowed to execute any git commands. This includes:
+- git push (pushing commits)
+- git pull (pulling changes)
+- git commit (committing changes)
+- git checkout (switching branches)
+- Any other git operations that modify the repository state
+
+If the user asks you to perform a git operation, politely explain that git actions are blocked 
+and suggest they use the toolbar buttons or execute the commands themselves.
+"""
+
+
 class ConversationService:
     """Service for managing conversations with OpenHands SDK integration."""
     
@@ -56,6 +69,15 @@ class ConversationService:
         
         # Load persisted conversations
         self._load_persisted_conversations()
+    
+    def _prepare_content_with_restrictions(self, content: str) -> str:
+        """Prepare user content with any active restrictions.
+        
+        If git blocking is enabled, prepends the restriction instruction.
+        """
+        if settings.block_agent_git_actions:
+            return f"{GIT_BLOCK_INSTRUCTION}\n\nUser message: {content}"
+        return content
     
     def list_conversations(self) -> list[dict[str, Any]]:
         """List all conversations."""
@@ -420,11 +442,14 @@ class ConversationService:
             print(f"[ConvService] Creating OpenHandsCloudClient...")
             client = OpenHandsCloudClient(api_key)
             
+            # Apply git restrictions if enabled
+            prepared_content = self._prepare_content_with_restrictions(user_content)
+            
             print(f"[ConvService] Calling client.run_message in executor...")
             loop = asyncio.get_event_loop()
             cloud_conv_id, response_text = await loop.run_in_executor(
                 None, 
-                lambda: client.run_message(user_content, timeout=300.0)
+                lambda: client.run_message(prepared_content, timeout=300.0)
             )
             print(f"[ConvService] run_message returned:")
             print(f"[ConvService]   cloud_conv_id: {cloud_conv_id}")
@@ -543,8 +568,11 @@ class ConversationService:
             # Store SDK conversation
             self._sdk_conversations[conversation.id] = sdk_conv
             
+            # Apply git restrictions if enabled
+            prepared_content = self._prepare_content_with_restrictions(user_content)
+            
             # Send message and run
-            sdk_conv.send_message(user_content)
+            sdk_conv.send_message(prepared_content)
             
             # Run in thread pool to avoid blocking
             loop = asyncio.get_event_loop()

@@ -66,11 +66,13 @@ class AppSettingsResponse(BaseModel):
 class PreferencesResponse(BaseModel):
     """Response model for user preferences."""
     quick_start_enabled: bool
+    block_agent_git_actions: bool
 
 
 class PreferencesRequest(BaseModel):
     """Request model for updating user preferences."""
     quick_start_enabled: Optional[bool] = None
+    block_agent_git_actions: Optional[bool] = None
 
 
 class SDKStatusResponse(BaseModel):
@@ -340,6 +342,7 @@ async def get_preferences():
     """Get user preferences."""
     return PreferencesResponse(
         quick_start_enabled=settings.quick_start_enabled,
+        block_agent_git_actions=settings.block_agent_git_actions,
     )
 
 
@@ -352,11 +355,15 @@ async def update_preferences(request: PreferencesRequest):
     if request.quick_start_enabled is not None:
         settings.quick_start_enabled = request.quick_start_enabled
     
+    if request.block_agent_git_actions is not None:
+        settings.block_agent_git_actions = request.block_agent_git_actions
+    
     # Persist settings to disk
     settings.save_to_disk()
     
     return PreferencesResponse(
         quick_start_enabled=settings.quick_start_enabled,
+        block_agent_git_actions=settings.block_agent_git_actions,
     )
 
 
