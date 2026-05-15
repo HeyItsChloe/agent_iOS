@@ -468,14 +468,12 @@ ipcMain.handle('tool:open-terminal-vscode', async () => {
 
   try {
     if (process.platform === 'darwin') {
-      // macOS - Use open -n -a to launch VS Code in a NEW window (works without PATH issues)
-      // -n flag forces a new instance/window even if VS Code is already open
+      // macOS - Use VS Code CLI directly with full path for reliable --new-window behavior
       // Then use AppleScript to wait for VS Code to be frontmost and send keystrokes
       // Note: key code 50 is backtick on US keyboard layout
-      // Use spawnSync with stdin to avoid shell escaping issues
-      // Use --args --new-window to force VS Code to open a new window
+      const vscodeCli = '/Applications/Visual Studio Code.app/Contents/Resources/app/bin/code';
       const script = `
-do shell script "open -n -a 'Visual Studio Code' --args --new-window '${workspaceDir.replace(/'/g, "'\\''")}'"
+do shell script "'" & "${vscodeCli}" & "' --new-window '${workspaceDir.replace(/'/g, "'\\''")}'"
 tell application "System Events"
   repeat 50 times
     if (name of first application process whose frontmost is true) is "Code" then exit repeat
