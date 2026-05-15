@@ -80,12 +80,6 @@ export function Header({
           {displayTitle}
         </h2>
         <div className="flex items-center gap-2 text-xs text-ios-text-secondary">
-          {isGroup && (
-            <span className="flex items-center gap-1">
-              <Users size={12} />
-              {conversationAgents.length} agents
-            </span>
-          )}
           {isDelegator && (
             <span className="flex items-center gap-1">
               <Sparkles size={12} />

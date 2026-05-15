@@ -122,7 +122,7 @@ export function ChatView() {
     <div className="h-full flex flex-col bg-ios-background">
       {/* Participants header */}
       {participantNames && (
-        <div className="bg-ios-card border-b border-ios-separator px-4 py-2 text-center">
+        <div className="px-4 py-2 text-center">
           <span className="text-sm text-ios-text-secondary">{participantNames}</span>
         </div>
       )}
