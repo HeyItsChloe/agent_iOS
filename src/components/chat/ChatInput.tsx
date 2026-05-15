@@ -63,9 +63,6 @@ export function ChatInput({
     a.name.toLowerCase().includes(mentionFilter.toLowerCase())
   );
 
-  // Debug: Log mention state
-  console.log('[ChatInput] agentIds:', agentIds, 'agentsArray:', agentsArray.length, 'mentionableAgents:', mentionableAgents.length, 'showMentions:', showMentions);
-
   // Auto-resize textarea
   useEffect(() => {
     if (textareaRef.current) {
@@ -165,7 +162,7 @@ export function ChatInput({
 
   return (
     <div className="border-t border-ios-separator bg-ios-card p-3">
-      <div className="max-w-2xl mx-auto">
+      <div className="max-w-2xl mx-auto relative">
         {/* Selected mention badge */}
         {selectedAgent && (
           <div className="flex items-center gap-2 mb-2 px-2">
@@ -185,7 +182,7 @@ export function ChatInput({
 
         {/* Mentions dropdown */}
         {showMentions && mentionableAgents.length > 0 && (
-          <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-full max-w-3xl bg-ios-card border border-ios-separator rounded-xl shadow-lg overflow-hidden z-10">
+          <div className="absolute bottom-full left-0 right-0 mb-2 bg-ios-card border border-ios-separator rounded-xl shadow-lg overflow-hidden z-50">
             {mentionableAgents.map(agent => (
               <button
                 key={agent.id}
