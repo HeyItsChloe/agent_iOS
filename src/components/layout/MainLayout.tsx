@@ -6,6 +6,10 @@ import { ErrorBoundary } from '../common/ErrorBoundary';
 import { LoadingSpinner } from '../common/LoadingSpinner';
 import { SkipLink, LiveRegion } from '../common/VisuallyHidden';
 import { useConversationStore } from '../../stores/conversationStore';
+import { useSettingsStore } from '../../stores/settingsStore';
+import { conversationsApi } from '../../api/client';
+
+const DEFAULT_AGENT_ID = 'general-assistant';
 
 // Lazy load modals for code splitting
 const NewChatModal = lazy(() => import('../modals/NewChatModal').then(m => ({ default: m.NewChatModal })));
@@ -37,8 +41,10 @@ export function MainLayout() {
   const [contactsInitialTab, setContactsInitialTab] = useState<'all' | 'new'>('all');
   const [mobileShowChat, setMobileShowChat] = useState(false);
   const [announcement, setAnnouncement] = useState('');
+  const [isQuickStarting, setIsQuickStarting] = useState(false);
   
-  const { activeConversationId, setActiveConversation, conversations } = useConversationStore();
+  const { activeConversationId, setActiveConversation, conversations, addConversation } = useConversationStore();
+  const { quickStartEnabled } = useSettingsStore();
 
   // Auto-select first conversation if none is selected
   useEffect(() => {
@@ -101,7 +107,55 @@ export function MainLayout() {
     setMobileShowChat(false);
   }, []);
 
-  const handleNewChat = useCallback(() => setShowNewChat(true), []);
+  const handleQuickStart = useCallback(async () => {
+    if (isQuickStarting) return;
+    
+    setIsQuickStarting(true);
+    try {
+      // Create conversation with default agent via API
+      const response = await conversationsApi.create({
+        type: 'single',
+        agent_ids: [DEFAULT_AGENT_ID],
+        skill_ids: [],
+      });
+      
+      // Map API response to frontend format
+      const newConversation = {
+        id: response.id,
+        type: response.type as 'single' | 'delegator' | 'group',
+        agentIds: response.agent_ids,
+        skillIds: response.skill_ids,
+        title: response.title || null,
+        messages: [],
+        createdAt: new Date(response.created_at),
+        updatedAt: new Date(response.updated_at),
+        typingAgents: response.typing_agents || {},
+        isArchived: response.is_archived || false,
+        isMuted: response.is_muted || false,
+        isStopped: response.is_stopped || false,
+      };
+      
+      addConversation(newConversation);
+      setActiveConversation(newConversation.id);
+      setMobileShowChat(true);
+      setAnnouncement('New conversation created with General Assistant');
+    } catch (error) {
+      console.error('Quick start failed:', error);
+      // Fall back to showing the modal
+      setShowNewChat(true);
+    } finally {
+      setIsQuickStarting(false);
+    }
+  }, [isQuickStarting, addConversation, setActiveConversation]);
+
+  const handleNewChat = useCallback(() => {
+    if (quickStartEnabled) {
+      handleQuickStart();
+    } else {
+      setShowNewChat(true);
+    }
+  }, [quickStartEnabled, handleQuickStart]);
+  
   const handleCloseNewChat = useCallback(() => setShowNewChat(false), []);
   const handleCloseSettings = useCallback(() => setShowSettings(false), []);
   const handleOpenAgentSelector = useCallback(() => setShowAgentSelector(true), []);

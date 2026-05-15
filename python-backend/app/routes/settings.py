@@ -63,6 +63,16 @@ class AppSettingsResponse(BaseModel):
     debug: bool
 
 
+class PreferencesResponse(BaseModel):
+    """Response model for user preferences."""
+    quick_start_enabled: bool
+
+
+class PreferencesRequest(BaseModel):
+    """Request model for updating user preferences."""
+    quick_start_enabled: Optional[bool] = None
+
+
 class SDKStatusResponse(BaseModel):
     """Response model for SDK status."""
     sdk_available: bool
@@ -322,6 +332,31 @@ async def get_app_settings():
         data_dir=str(settings.data_dir),
         default_workspace=str(settings.default_workspace),
         debug=settings.debug,
+    )
+
+
+@router.get("/preferences", response_model=PreferencesResponse)
+async def get_preferences():
+    """Get user preferences."""
+    return PreferencesResponse(
+        quick_start_enabled=settings.quick_start_enabled,
+    )
+
+
+@router.post("/preferences", response_model=PreferencesResponse)
+async def update_preferences(request: PreferencesRequest):
+    """Update user preferences.
+    
+    Settings are persisted to ~/.agent_ios/settings.json.
+    """
+    if request.quick_start_enabled is not None:
+        settings.quick_start_enabled = request.quick_start_enabled
+    
+    # Persist settings to disk
+    settings.save_to_disk()
+    
+    return PreferencesResponse(
+        quick_start_enabled=settings.quick_start_enabled,
     )
 
 

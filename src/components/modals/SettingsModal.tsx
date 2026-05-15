@@ -101,7 +101,9 @@ function AppearanceSettings() {
     compactMode, 
     setCompactMode,
     showTimestamps,
-    setShowTimestamps 
+    setShowTimestamps,
+    quickStartEnabled,
+    setQuickStartEnabled,
   } = useSettingsStore();
 
   return (
@@ -139,6 +141,20 @@ function AppearanceSettings() {
               <div className="w-12 h-8 rounded-md bg-gradient-to-r from-white to-gray-800 border border-gray-300 shadow-sm" />
               <span className={cn('text-xs font-medium', theme === 'system' ? 'text-ios-blue' : 'text-ios-text-secondary')}>Auto</span>
             </div>
+          </label>
+        </div>
+      </div>
+
+      {/* Conversations */}
+      <div>
+        <h4 className="text-sm font-semibold text-ios-text mb-3">Conversations</h4>
+        <div className="bg-ios-secondary rounded-lg p-3">
+          <label className="flex items-center justify-between cursor-pointer">
+            <div>
+              <span className="text-sm text-ios-text block">Quick start</span>
+              <span className="text-xs text-ios-text-secondary">Skip agent selection, use General Assistant</span>
+            </div>
+            <ToggleSwitch checked={quickStartEnabled} onChange={setQuickStartEnabled} />
           </label>
         </div>
       </div>

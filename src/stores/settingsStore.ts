@@ -22,6 +22,9 @@ interface SettingsState {
   showTimestamps: boolean;
   compactMode: boolean;
   
+  // Quick Start
+  quickStartEnabled: boolean;
+  
   // LLM Settings (for SDK)
   llmModel: string;
   llmApiKey: string;
@@ -38,6 +41,8 @@ interface SettingsState {
   
   setShowTimestamps: (show: boolean) => void;
   setCompactMode: (compact: boolean) => void;
+  
+  setQuickStartEnabled: (enabled: boolean) => void;
   
   setLLMModel: (model: string) => void;
   setLLMApiKey: (key: string) => void;
@@ -58,6 +63,7 @@ const initialState = {
   notificationsEnabled: true,
   showTimestamps: true,
   compactMode: false,
+  quickStartEnabled: false,
   llmModel: 'anthropic/claude-sonnet-4-5-20250929',
   llmApiKey: '',
 };
@@ -79,6 +85,8 @@ export const useSettingsStore = create<SettingsState>()(
       setShowTimestamps: (show) => set({ showTimestamps: show }),
       setCompactMode: (compact) => set({ compactMode: compact }),
       
+      setQuickStartEnabled: (enabled) => set({ quickStartEnabled: enabled }),
+      
       setLLMModel: (model) => set({ llmModel: model }),
       setLLMApiKey: (key) => set({ llmApiKey: key }),
       
@@ -93,6 +101,7 @@ export const useSettingsStore = create<SettingsState>()(
         notificationsEnabled: state.notificationsEnabled,
         showTimestamps: state.showTimestamps,
         compactMode: state.compactMode,
+        quickStartEnabled: state.quickStartEnabled,
         llmModel: state.llmModel,
         // Note: llmApiKey is intentionally not persisted for security
       }),

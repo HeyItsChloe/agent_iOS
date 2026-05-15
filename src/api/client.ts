@@ -197,6 +197,10 @@ export interface SDKStatus {
   providers: Record<string, ProviderStatus>;
 }
 
+export interface Preferences {
+  quick_start_enabled: boolean;
+}
+
 export const settingsApi = {
   getLLM: () => request<LLMSettings>('/settings/llm'),
   
@@ -224,6 +228,14 @@ export const settingsApi = {
   }>('/settings/app'),
   
   getSDKStatus: () => request<SDKStatus>('/settings/sdk-status'),
+  
+  getPreferences: () => request<Preferences>('/settings/preferences'),
+  
+  updatePreferences: (data: Partial<Preferences>) => 
+    request<Preferences>('/settings/preferences', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
 };
 
 // Health API
