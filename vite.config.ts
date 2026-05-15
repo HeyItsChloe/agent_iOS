@@ -12,6 +12,7 @@ export default defineConfig({
   server: {
     port: 5173,
     strictPort: true,
+    allowedHosts: ['.prod-runtime.all-hands.dev'],
     proxy: {
       '/api': {
         target: 'http://127.0.0.1:8765',

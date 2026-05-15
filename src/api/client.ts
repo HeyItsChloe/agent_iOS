@@ -82,7 +82,7 @@ export const conversationsApi = {
 
 // Agents API
 export const agentsApi = {
-  list: () => request<any[]>('/agents'),
+  list: () => request<any[]>('/agents/'),
   
   get: (id: string) => request<any>(`/agents/${id}`),
   
@@ -94,7 +94,7 @@ export const agentsApi = {
     system_prompt?: string;
     tool_ids?: string[];
     skill_ids?: string[];
-  }) => request<any>('/agents', {
+  }) => request<any>('/agents/', {
     method: 'POST',
     body: JSON.stringify(data),
   }),
@@ -116,12 +116,12 @@ export const agentsApi = {
     method: 'DELETE',
   }),
   
-  listTools: () => request<any[]>('/agents/tools'),
+  listTools: () => request<any[]>('/agents/tools/'),
 };
 
 // Skills API
 export const skillsApi = {
-  list: () => request<any[]>('/skills'),
+  list: () => request<any[]>('/skills/'),
   
   get: (id: string) => request<any>(`/skills/${id}`),
   
@@ -132,7 +132,7 @@ export const skillsApi = {
     category?: string;
     triggers?: string[];
     content: string;
-  }) => request<any>('/skills', {
+  }) => request<any>('/skills/', {
     method: 'POST',
     body: JSON.stringify(data),
   }),
@@ -153,7 +153,7 @@ export const skillsApi = {
     method: 'DELETE',
   }),
   
-  listCategories: () => request<any[]>('/skills/categories'),
+  listCategories: () => request<any[]>('/skills/categories/'),
 };
 
 // Settings API
