@@ -5,6 +5,13 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 
+interface ToolbarSettings {
+  showPush: boolean;
+  showPull: boolean;
+  showCommit: boolean;
+  showBranch: boolean;
+}
+
 interface SettingsState {
   // Backend connection
   backendUrl: string;
@@ -25,6 +32,9 @@ interface SettingsState {
   // Quick Start
   quickStartEnabled: boolean;
   
+  // Toolbar
+  toolbar: ToolbarSettings;
+  
   // LLM Settings (for SDK)
   llmModel: string;
   llmApiKey: string;
@@ -44,6 +54,8 @@ interface SettingsState {
   
   setQuickStartEnabled: (enabled: boolean) => void;
   
+  setToolbarSetting: (key: keyof ToolbarSettings, value: boolean) => void;
+  
   setLLMModel: (model: string) => void;
   setLLMApiKey: (key: string) => void;
   
@@ -53,6 +65,13 @@ interface SettingsState {
 
 const DEFAULT_BACKEND_URL = 'http://127.0.0.1:8765';
 const DEFAULT_WEBSOCKET_URL = 'ws://127.0.0.1:8765';
+
+const defaultToolbar: ToolbarSettings = {
+  showPush: true,
+  showPull: true,
+  showCommit: true,
+  showBranch: true,
+};
 
 const initialState = {
   backendUrl: DEFAULT_BACKEND_URL,
@@ -64,6 +83,7 @@ const initialState = {
   showTimestamps: true,
   compactMode: false,
   quickStartEnabled: false,
+  toolbar: defaultToolbar,
   llmModel: 'anthropic/claude-sonnet-4-5-20250929',
   llmApiKey: '',
 };
@@ -87,6 +107,10 @@ export const useSettingsStore = create<SettingsState>()(
       
       setQuickStartEnabled: (enabled) => set({ quickStartEnabled: enabled }),
       
+      setToolbarSetting: (key, value) => set((state) => ({
+        toolbar: { ...state.toolbar, [key]: value }
+      })),
+      
       setLLMModel: (model) => set({ llmModel: model }),
       setLLMApiKey: (key) => set({ llmApiKey: key }),
       
@@ -102,12 +126,15 @@ export const useSettingsStore = create<SettingsState>()(
         showTimestamps: state.showTimestamps,
         compactMode: state.compactMode,
         quickStartEnabled: state.quickStartEnabled,
+        toolbar: state.toolbar,
         llmModel: state.llmModel,
         // Note: llmApiKey is intentionally not persisted for security
       }),
     }
   )
 );
+
+export type { ToolbarSettings };
 
 // Selector hooks
 export const useTheme = () => useSettingsStore(state => state.theme);

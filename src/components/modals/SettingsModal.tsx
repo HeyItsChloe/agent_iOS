@@ -8,7 +8,7 @@ interface SettingsModalProps {
   onClose: () => void;
 }
 
-type SettingsTab = 'appearance' | 'llm' | 'advanced' | 'about';
+type SettingsTab = 'appearance' | 'toolbar' | 'llm' | 'advanced' | 'about';
 
 export function SettingsModal({ onClose }: SettingsModalProps) {
   const [activeTab, setActiveTab] = useState<SettingsTab>('appearance');
@@ -37,6 +37,12 @@ export function SettingsModal({ onClose }: SettingsModalProps) {
               label="Appearance"
             />
             <ToolbarButton
+              active={activeTab === 'toolbar'}
+              onClick={() => setActiveTab('toolbar')}
+              icon="🛠️"
+              label="Toolbar"
+            />
+            <ToolbarButton
               active={activeTab === 'llm'}
               onClick={() => setActiveTab('llm')}
               icon="🔑"
@@ -60,6 +66,7 @@ export function SettingsModal({ onClose }: SettingsModalProps) {
         {/* Tab content */}
         <div className="p-6 max-h-96 overflow-y-auto">
           {activeTab === 'appearance' && <AppearanceSettings />}
+          {activeTab === 'toolbar' && <ToolbarSettingsPanel />}
           {activeTab === 'llm' && <LLMSettingsPanel />}
           {activeTab === 'advanced' && <AdvancedSettings />}
           {activeTab === 'about' && <AboutSection />}
@@ -177,6 +184,84 @@ function AppearanceSettings() {
           <label className="flex items-center justify-between cursor-pointer">
             <span className="text-sm text-ios-text">Show timestamps</span>
             <ToggleSwitch checked={showTimestamps} onChange={setShowTimestamps} />
+          </label>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function ToolbarSettingsPanel() {
+  const { toolbar, setToolbarSetting } = useSettingsStore();
+
+  return (
+    <div className="space-y-6">
+      <div>
+        <h4 className="text-sm font-semibold text-ios-text mb-3">Git Toolbar Buttons</h4>
+        <p className="text-xs text-ios-text-secondary mb-4">
+          Choose which buttons to show in the conversation toolbar.
+        </p>
+        <div className="bg-ios-secondary rounded-lg p-3 space-y-3">
+          <label className="flex items-center justify-between cursor-pointer">
+            <div className="flex items-center gap-2">
+              <span className="text-lg">📝</span>
+              <div>
+                <span className="text-sm text-ios-text block">Commit</span>
+                <span className="text-xs text-ios-text-secondary">Stage and commit changes</span>
+              </div>
+            </div>
+            <ToggleSwitch 
+              checked={toolbar.showCommit} 
+              onChange={(checked) => setToolbarSetting('showCommit', checked)} 
+            />
+          </label>
+          
+          <div className="border-t border-ios-separator" />
+          
+          <label className="flex items-center justify-between cursor-pointer">
+            <div className="flex items-center gap-2">
+              <span className="text-lg">⬆️</span>
+              <div>
+                <span className="text-sm text-ios-text block">Push</span>
+                <span className="text-xs text-ios-text-secondary">Push commits to remote</span>
+              </div>
+            </div>
+            <ToggleSwitch 
+              checked={toolbar.showPush} 
+              onChange={(checked) => setToolbarSetting('showPush', checked)} 
+            />
+          </label>
+          
+          <div className="border-t border-ios-separator" />
+          
+          <label className="flex items-center justify-between cursor-pointer">
+            <div className="flex items-center gap-2">
+              <span className="text-lg">⬇️</span>
+              <div>
+                <span className="text-sm text-ios-text block">Pull</span>
+                <span className="text-xs text-ios-text-secondary">Pull changes from remote</span>
+              </div>
+            </div>
+            <ToggleSwitch 
+              checked={toolbar.showPull} 
+              onChange={(checked) => setToolbarSetting('showPull', checked)} 
+            />
+          </label>
+          
+          <div className="border-t border-ios-separator" />
+          
+          <label className="flex items-center justify-between cursor-pointer">
+            <div className="flex items-center gap-2">
+              <span className="text-lg">🌿</span>
+              <div>
+                <span className="text-sm text-ios-text block">Branch</span>
+                <span className="text-xs text-ios-text-secondary">Switch between branches</span>
+              </div>
+            </div>
+            <ToggleSwitch 
+              checked={toolbar.showBranch} 
+              onChange={(checked) => setToolbarSetting('showBranch', checked)} 
+            />
           </label>
         </div>
       </div>

@@ -1,5 +1,6 @@
 import { useState } from 'react';
-import { GitBranch, ArrowUpFromLine, ArrowDownToLine, ChevronDown, Loader2 } from 'lucide-react';
+import { GitBranch, GitCommit, ArrowUpFromLine, ArrowDownToLine, ChevronDown, Loader2 } from 'lucide-react';
+import { useSettingsStore } from '../../stores/settingsStore';
 import { cn } from '../../utils/cn';
 
 interface GitToolbarProps {
@@ -11,6 +12,8 @@ export function GitToolbar({ onGitCommand, disabled }: GitToolbarProps) {
   const [isLoading, setIsLoading] = useState<string | null>(null);
   const [showBranchMenu, setShowBranchMenu] = useState(false);
   const [currentBranch, setCurrentBranch] = useState('main');
+  
+  const { toolbar } = useSettingsStore();
 
   const handleCommand = async (command: string, label: string) => {
     if (disabled || isLoading) return;
@@ -26,6 +29,7 @@ export function GitToolbar({ onGitCommand, disabled }: GitToolbarProps) {
 
   const handlePush = () => handleCommand('git push', 'push');
   const handlePull = () => handleCommand('git pull', 'pull');
+  const handleCommit = () => handleCommand('git add -A && git commit -m "Update"', 'commit');
   
   const handleSwitchBranch = (branch: string) => {
     handleCommand(`git checkout ${branch}`, 'branch');
@@ -35,75 +39,99 @@ export function GitToolbar({ onGitCommand, disabled }: GitToolbarProps) {
 
   // Common branches - in a real app, these would be fetched from git
   const branches = ['main', 'develop', 'feature/new-feature'];
+  
+  // Check if any buttons are visible
+  const hasVisibleButtons = toolbar.showPush || toolbar.showPull || toolbar.showCommit || toolbar.showBranch;
+  
+  if (!hasVisibleButtons) {
+    return null;
+  }
 
   return (
     <div className="flex items-center gap-1 px-3 py-2 border-t border-ios-separator bg-ios-card/50">
       <span className="text-xs text-ios-text-secondary mr-2">Git:</span>
       
+      {/* Commit button */}
+      {toolbar.showCommit && (
+        <ToolbarButton
+          onClick={handleCommit}
+          disabled={disabled || isLoading !== null}
+          loading={isLoading === 'commit'}
+          icon={<GitCommit size={14} />}
+          label="Commit"
+        />
+      )}
+      
       {/* Push button */}
-      <ToolbarButton
-        onClick={handlePush}
-        disabled={disabled || isLoading !== null}
-        loading={isLoading === 'push'}
-        icon={<ArrowUpFromLine size={14} />}
-        label="Push"
-      />
+      {toolbar.showPush && (
+        <ToolbarButton
+          onClick={handlePush}
+          disabled={disabled || isLoading !== null}
+          loading={isLoading === 'push'}
+          icon={<ArrowUpFromLine size={14} />}
+          label="Push"
+        />
+      )}
       
       {/* Pull button */}
-      <ToolbarButton
-        onClick={handlePull}
-        disabled={disabled || isLoading !== null}
-        loading={isLoading === 'pull'}
-        icon={<ArrowDownToLine size={14} />}
-        label="Pull"
-      />
+      {toolbar.showPull && (
+        <ToolbarButton
+          onClick={handlePull}
+          disabled={disabled || isLoading !== null}
+          loading={isLoading === 'pull'}
+          icon={<ArrowDownToLine size={14} />}
+          label="Pull"
+        />
+      )}
       
       {/* Branch switcher */}
-      <div className="relative ml-1">
-        <button
-          onClick={() => setShowBranchMenu(!showBranchMenu)}
-          disabled={disabled || isLoading !== null}
-          className={cn(
-            'flex items-center gap-1 px-2 py-1 rounded-md text-xs transition-colors',
-            disabled || isLoading !== null
-              ? 'text-ios-text-secondary cursor-not-allowed'
-              : 'text-ios-text hover:bg-ios-secondary'
-          )}
-        >
-          <GitBranch size={14} />
-          <span className="max-w-[80px] truncate">{currentBranch}</span>
-          <ChevronDown size={12} />
-        </button>
-        
-        {/* Branch dropdown */}
-        {showBranchMenu && (
-          <>
-            <div 
-              className="fixed inset-0 z-10" 
-              onClick={() => setShowBranchMenu(false)} 
-            />
-            <div className="absolute bottom-full left-0 mb-1 w-40 bg-ios-card border border-ios-separator rounded-lg shadow-ios-lg overflow-hidden z-20">
-              <div className="py-1">
-                {branches.map(branch => (
-                  <button
-                    key={branch}
-                    onClick={() => handleSwitchBranch(branch)}
-                    className={cn(
-                      'w-full px-3 py-1.5 text-left text-xs hover:bg-ios-secondary transition-colors',
-                      branch === currentBranch 
-                        ? 'text-ios-blue font-medium' 
-                        : 'text-ios-text'
-                    )}
-                  >
-                    {branch === currentBranch && '✓ '}
-                    {branch}
-                  </button>
-                ))}
+      {toolbar.showBranch && (
+        <div className="relative ml-1">
+          <button
+            onClick={() => setShowBranchMenu(!showBranchMenu)}
+            disabled={disabled || isLoading !== null}
+            className={cn(
+              'flex items-center gap-1 px-2 py-1 rounded-md text-xs transition-colors',
+              disabled || isLoading !== null
+                ? 'text-ios-text-secondary cursor-not-allowed'
+                : 'text-ios-text hover:bg-ios-secondary'
+            )}
+          >
+            <GitBranch size={14} />
+            <span className="max-w-[80px] truncate">{currentBranch}</span>
+            <ChevronDown size={12} />
+          </button>
+          
+          {/* Branch dropdown */}
+          {showBranchMenu && (
+            <>
+              <div 
+                className="fixed inset-0 z-10" 
+                onClick={() => setShowBranchMenu(false)} 
+              />
+              <div className="absolute bottom-full left-0 mb-1 w-40 bg-ios-card border border-ios-separator rounded-lg shadow-ios-lg overflow-hidden z-20">
+                <div className="py-1">
+                  {branches.map(branch => (
+                    <button
+                      key={branch}
+                      onClick={() => handleSwitchBranch(branch)}
+                      className={cn(
+                        'w-full px-3 py-1.5 text-left text-xs hover:bg-ios-secondary transition-colors',
+                        branch === currentBranch 
+                          ? 'text-ios-blue font-medium' 
+                          : 'text-ios-text'
+                      )}
+                    >
+                      {branch === currentBranch && '✓ '}
+                      {branch}
+                    </button>
+                  ))}
+                </div>
               </div>
-            </div>
-          </>
-        )}
-      </div>
+            </>
+          )}
+        </div>
+      )}
     </div>
   );
 }
