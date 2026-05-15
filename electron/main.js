@@ -415,32 +415,36 @@ function getWorkspaceDir() {
 }
 
 /**
- * Tool: Open Terminal in project directory.
- * Opens the native terminal application at the workspace path.
+ * Tool: Open Terminal in project directory with OpenHands CLI.
+ * Opens the native terminal application at the workspace path and runs openhands.
  */
 ipcMain.handle('tool:open-terminal', async () => {
   const workspaceDir = getWorkspaceDir();
-  console.log(`[Tool] Opening terminal at: ${workspaceDir}`);
+  console.log(`[Tool] Opening terminal with OpenHands CLI at: ${workspaceDir}`);
 
   try {
     if (process.platform === 'darwin') {
-      // macOS - Use osascript to open Terminal.app and cd to directory
+      // macOS - Use osascript to open Terminal.app, cd to directory, and run openhands
       const script = `
         tell application "Terminal"
           activate
-          do script "cd '${workspaceDir.replace(/'/g, "'\\''")}'"
+          do script "cd '${workspaceDir.replace(/'/g, "\\'")}' && openhands"
         end tell
       `;
       execSync(`osascript -e '${script.replace(/'/g, "'\"'\"'")}'`);
     } else if (process.platform === 'win32') {
-      // Windows - Open Windows Terminal or cmd
-      spawn('cmd.exe', ['/c', 'start', 'cmd', '/k', `cd /d "${workspaceDir}"`], { shell: true });
+      // Windows - Open Windows Terminal or cmd and run openhands
+      spawn('cmd.exe', ['/c', 'start', 'cmd', '/k', `cd /d "${workspaceDir}" && openhands`], { shell: true });
     } else {
       // Linux - Try common terminal emulators
       const terminals = ['gnome-terminal', 'konsole', 'xterm', 'x-terminal-emulator'];
       for (const term of terminals) {
         try {
-          spawn(term, ['--working-directory', workspaceDir], { detached: true });
+          if (term === 'gnome-terminal') {
+            spawn(term, ['--working-directory', workspaceDir, '--', 'bash', '-c', 'openhands; exec bash'], { detached: true });
+          } else {
+            spawn(term, ['--working-directory', workspaceDir, '-e', 'openhands'], { detached: true });
+          }
           break;
         } catch {
           continue;
