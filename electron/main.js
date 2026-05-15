@@ -473,8 +473,9 @@ ipcMain.handle('tool:open-terminal-vscode', async () => {
       // Then use AppleScript to wait for VS Code to be frontmost and send keystrokes
       // Note: key code 50 is backtick on US keyboard layout
       // Use spawnSync with stdin to avoid shell escaping issues
+      // Use --args --new-window to force VS Code to open a new window
       const script = `
-do shell script "open -n -a 'Visual Studio Code' '${workspaceDir.replace(/'/g, "'\\''")}'"
+do shell script "open -n -a 'Visual Studio Code' --args --new-window '${workspaceDir.replace(/'/g, "'\\''")}'"
 tell application "System Events"
   repeat 50 times
     if (name of first application process whose frontmost is true) is "Code" then exit repeat
