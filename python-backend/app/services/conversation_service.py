@@ -77,7 +77,7 @@ class ConversationService:
         # Generate title if not provided
         if not title:
             if conv_type == ConversationType.GROUP:
-                title = f"Group Chat ({len(agent_ids)} agents)"
+                title = "Group Chat"
             elif conv_type == ConversationType.DELEGATOR:
                 title = "Planning Assistant"
             else:
