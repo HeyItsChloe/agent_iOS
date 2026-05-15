@@ -100,7 +100,7 @@ class OpenHandsCloudClient:
         return items[0] if items else {}
     
     def get_events(self, conversation_id: str, limit: int = 100) -> list:
-        """Get conversation events."""
+        """Get conversation events from app server."""
         response = httpx.get(
             f"{self.base_url}/api/v1/conversation/{conversation_id}/events/search",
             params={"limit": limit},
@@ -110,6 +110,43 @@ class OpenHandsCloudClient:
         
         if response.status_code != 200:
             raise Exception(f"Failed to get events: {response.status_code}")
+        
+        data = response.json()
+        # Handle both list and dict responses
+        if isinstance(data, list):
+            return data
+        return data.get("items", [])
+    
+    def get_events_from_agent_server(
+        self, 
+        agent_server_url: str, 
+        session_api_key: str, 
+        conversation_id: str, 
+        limit: int = 100
+    ) -> list:
+        """Get conversation events from the agent server (more up-to-date).
+        
+        The agent server runs inside the sandbox and has real-time event data.
+        Use X-Session-API-Key header for authentication.
+        """
+        url = f"{agent_server_url.rstrip('/')}/api/conversations/{conversation_id}/events/search"
+        headers = {
+            "X-Session-API-Key": session_api_key,
+            "Content-Type": "application/json",
+        }
+        
+        print(f"[OpenHands Cloud] Fetching events from agent server: {url}")
+        
+        response = httpx.get(
+            url,
+            params={"limit": limit},
+            headers=headers,
+            timeout=30.0,
+        )
+        
+        if response.status_code != 200:
+            print(f"[OpenHands Cloud] Agent server events failed: {response.status_code} - {response.text[:200]}")
+            raise Exception(f"Failed to get events from agent server: {response.status_code}")
         
         data = response.json()
         # Handle both list and dict responses
@@ -195,20 +232,73 @@ class OpenHandsCloudClient:
         print(f"[OpenHands Cloud] Completion result: {completion_result}")
         print(f"[OpenHands Cloud] Execution status: {completion_result.get('execution_status')}")
         
-        # Get events and extract assistant response
-        print(f"[OpenHands Cloud] Fetching events...")
-        events = self.get_events(conv_id)
-        print(f"[OpenHands Cloud] Got {len(events)} events")
+        # Extract agent server credentials from completion result
+        agent_server_url = completion_result.get("agent_server_url")
+        session_api_key = completion_result.get("session_api_key")
         
-        # Debug: Print all event types
-        for i, event in enumerate(events):
-            source = event.get("source", "unknown")
-            kind = event.get("kind", "unknown")
-            print(f"[OpenHands Cloud] Event {i}: source={source}, kind={kind}")
+        print(f"[OpenHands Cloud] Agent server URL: {agent_server_url}")
+        print(f"[OpenHands Cloud] Session API key: {'set' if session_api_key else 'NOT SET'}")
         
-        # Find the last assistant message
-        # Note: MessageEvent uses source="assistant" (not "agent" - that's for ActionEvents)
+        # Poll for assistant response with retries
+        # The events may not be immediately available after execution_status=finished
         assistant_response = ""
+        max_event_polls = 15
+        event_poll_interval = 2.0
+        
+        for event_poll in range(max_event_polls):
+            print(f"[OpenHands Cloud] Event poll {event_poll + 1}/{max_event_polls}...")
+            
+            # Try agent server first (more up-to-date), fall back to app server
+            events = []
+            if agent_server_url and session_api_key:
+                try:
+                    events = self.get_events_from_agent_server(
+                        agent_server_url, session_api_key, conv_id
+                    )
+                    print(f"[OpenHands Cloud] Got {len(events)} events from agent server")
+                except Exception as e:
+                    print(f"[OpenHands Cloud] Agent server events failed: {e}, trying app server...")
+                    events = self.get_events(conv_id)
+                    print(f"[OpenHands Cloud] Got {len(events)} events from app server")
+            else:
+                events = self.get_events(conv_id)
+                print(f"[OpenHands Cloud] Got {len(events)} events from app server")
+            
+            # Debug: Print all event types
+            for i, event in enumerate(events):
+                source = event.get("source", "unknown")
+                kind = event.get("kind", "unknown")
+                print(f"[OpenHands Cloud] Event {i}: source={source}, kind={kind}")
+            
+            # Try to extract assistant response
+            assistant_response = self._extract_assistant_response(events)
+            
+            if assistant_response:
+                print(f"[OpenHands Cloud] Found assistant response on poll {event_poll + 1}")
+                break
+            
+            # No response yet, wait and retry
+            if event_poll < max_event_polls - 1:
+                print(f"[OpenHands Cloud] No assistant response yet, waiting {event_poll_interval}s...")
+                time.sleep(event_poll_interval)
+        
+        if not assistant_response:
+            print(f"[OpenHands Cloud] WARNING: No assistant response after {max_event_polls} polls!")
+            print(f"[OpenHands Cloud] Event summary for debugging:")
+            for i, event in enumerate(events):
+                print(f"[OpenHands Cloud]   {i}: kind={event.get('kind')}, source={event.get('source')}, keys={list(event.keys())}")
+        
+        print(f"[OpenHands Cloud] ========== END run_message ==========")
+        print(f"[OpenHands Cloud] Returning: conv_id={conv_id}, response_length={len(assistant_response)}")
+        
+        return conv_id, assistant_response
+    
+    def _extract_assistant_response(self, events: list) -> str:
+        """Extract assistant response from events list.
+        
+        Tries multiple content extraction paths to handle different event formats.
+        Returns empty string if no assistant response found.
+        """
         for event in reversed(events):
             kind = event.get("kind", "")
             source = event.get("source", "")
@@ -222,16 +312,14 @@ class OpenHandsCloudClient:
                 # Path 1: Direct "message" field
                 msg = event.get("message")
                 if msg and isinstance(msg, str):
-                    assistant_response = msg
-                    print(f"[OpenHands Cloud] Extracted from 'message' field: {assistant_response[:200]}...")
-                    break
+                    print(f"[OpenHands Cloud] Extracted from 'message' field: {msg[:200]}...")
+                    return msg
                 
                 # Path 2: Direct "content" as string
                 content = event.get("content")
                 if content and isinstance(content, str):
-                    assistant_response = content
-                    print(f"[OpenHands Cloud] Extracted from 'content' string: {assistant_response[:200]}...")
-                    break
+                    print(f"[OpenHands Cloud] Extracted from 'content' string: {content[:200]}...")
+                    return content
                 
                 # Path 3: llm_message structure (OpenAI chat format)
                 llm_msg = event.get("llm_message", {})
@@ -240,9 +328,8 @@ class OpenHandsCloudClient:
                     
                     # 3a: content is a string directly
                     if isinstance(llm_content, str) and llm_content:
-                        assistant_response = llm_content
-                        print(f"[OpenHands Cloud] Extracted from 'llm_message.content' string: {assistant_response[:200]}...")
-                        break
+                        print(f"[OpenHands Cloud] Extracted from 'llm_message.content' string: {llm_content[:200]}...")
+                        return llm_content
                     
                     # 3b: content is an array of content blocks
                     if isinstance(llm_content, list):
@@ -250,48 +337,33 @@ class OpenHandsCloudClient:
                             if isinstance(block, dict):
                                 # Text block: {"type": "text", "text": "..."}
                                 if block.get("type") == "text" and block.get("text"):
-                                    assistant_response = block.get("text", "")
-                                    print(f"[OpenHands Cloud] Extracted from 'llm_message.content[].text': {assistant_response[:200]}...")
-                                    break
+                                    text = block.get("text", "")
+                                    print(f"[OpenHands Cloud] Extracted from 'llm_message.content[].text': {text[:200]}...")
+                                    return text
                             elif isinstance(block, str) and block:
                                 # Plain string in array
-                                assistant_response = block
-                                print(f"[OpenHands Cloud] Extracted from 'llm_message.content[]' string: {assistant_response[:200]}...")
-                                break
-                        if assistant_response:
-                            break
+                                print(f"[OpenHands Cloud] Extracted from 'llm_message.content[]' string: {block[:200]}...")
+                                return block
                 
                 # Path 4: Check for nested message in llm_message
-                if llm_msg.get("message"):
-                    assistant_response = llm_msg.get("message")
-                    print(f"[OpenHands Cloud] Extracted from 'llm_message.message': {assistant_response[:200]}...")
-                    break
+                if llm_msg and llm_msg.get("message"):
+                    msg = llm_msg.get("message")
+                    print(f"[OpenHands Cloud] Extracted from 'llm_message.message': {msg[:200]}...")
+                    return msg
                 
                 # Path 5: extended_content field (some SDK versions)
                 ext_content = event.get("extended_content", [])
                 if ext_content and isinstance(ext_content, list):
                     for item in ext_content:
                         if isinstance(item, dict) and item.get("type") == "text":
-                            assistant_response = item.get("text", "")
-                            if assistant_response:
-                                print(f"[OpenHands Cloud] Extracted from 'extended_content': {assistant_response[:200]}...")
-                                break
-                    if assistant_response:
-                        break
+                            text = item.get("text", "")
+                            if text:
+                                print(f"[OpenHands Cloud] Extracted from 'extended_content': {text[:200]}...")
+                                return text
                 
-                print(f"[OpenHands Cloud] Could not extract content from MessageEvent, full event: {event}")
+                print(f"[OpenHands Cloud] Could not extract content from MessageEvent, keys: {list(event.keys())}")
         
-        if not assistant_response:
-            print(f"[OpenHands Cloud] WARNING: No assistant response extracted from events!")
-            # Print condensed event info for debugging
-            print(f"[OpenHands Cloud] Event summary for debugging:")
-            for i, event in enumerate(events):
-                print(f"[OpenHands Cloud]   {i}: kind={event.get('kind')}, source={event.get('source')}, keys={list(event.keys())}")
-        
-        print(f"[OpenHands Cloud] ========== END run_message ==========")
-        print(f"[OpenHands Cloud] Returning: conv_id={conv_id}, response_length={len(assistant_response)}")
-        
-        return conv_id, assistant_response
+        return ""
 
 
 def verify_openhands_api_key(api_key: str) -> bool:
