@@ -41,6 +41,7 @@ export function useVoiceInput(): UseVoiceInputReturn {
   const isSupported = !!SpeechRecognitionAPI;
 
   useEffect(() => {
+    console.log('[VoiceInput] SpeechRecognitionAPI available:', !!SpeechRecognitionAPI);
     if (!SpeechRecognitionAPI) return;
 
     const recognition = new SpeechRecognitionAPI();
@@ -48,7 +49,20 @@ export function useVoiceInput(): UseVoiceInputReturn {
     recognition.interimResults = true;
     recognition.lang = 'en-US';
 
+    recognition.onstart = () => {
+      console.log('[VoiceInput] Recognition started');
+    };
+
+    recognition.onaudiostart = () => {
+      console.log('[VoiceInput] Audio capture started');
+    };
+
+    recognition.onspeechstart = () => {
+      console.log('[VoiceInput] Speech detected');
+    };
+
     recognition.onresult = (event: SpeechRecognitionEvent) => {
+      console.log('[VoiceInput] Got result:', event.results);
       let finalTranscript = '';
       let interimTranscript = '';
 
@@ -56,8 +70,10 @@ export function useVoiceInput(): UseVoiceInputReturn {
         const result = event.results[i];
         if (result.isFinal) {
           finalTranscript += result[0].transcript;
+          console.log('[VoiceInput] Final transcript:', finalTranscript);
         } else {
           interimTranscript += result[0].transcript;
+          console.log('[VoiceInput] Interim transcript:', interimTranscript);
         }
       }
 
@@ -65,6 +81,7 @@ export function useVoiceInput(): UseVoiceInputReturn {
     };
 
     recognition.onerror = (event) => {
+      console.error('[VoiceInput] Error:', event.error, event);
       setError(event.error === 'not-allowed' 
         ? 'Microphone access denied' 
         : `Speech recognition error: ${event.error}`
@@ -73,6 +90,7 @@ export function useVoiceInput(): UseVoiceInputReturn {
     };
 
     recognition.onend = () => {
+      console.log('[VoiceInput] Recognition ended');
       setIsRecording(false);
     };
 
@@ -84,7 +102,9 @@ export function useVoiceInput(): UseVoiceInputReturn {
   }, [SpeechRecognitionAPI]);
 
   const startRecording = useCallback(() => {
+    console.log('[VoiceInput] startRecording called, ref:', !!recognitionRef.current);
     if (!recognitionRef.current) {
+      console.error('[VoiceInput] No recognition ref');
       setError('Speech recognition not supported');
       return;
     }
@@ -93,9 +113,12 @@ export function useVoiceInput(): UseVoiceInputReturn {
     setTranscript('');
     
     try {
+      console.log('[VoiceInput] Calling recognition.start()');
       recognitionRef.current.start();
+      console.log('[VoiceInput] recognition.start() called successfully');
       setIsRecording(true);
     } catch (err) {
+      console.error('[VoiceInput] Failed to start:', err);
       setError('Failed to start recording');
     }
   }, []);
