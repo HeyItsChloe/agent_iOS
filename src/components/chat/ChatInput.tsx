@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect, KeyboardEvent, useMemo } from 'react';
-import { Send, Mic, AtSign, X } from 'lucide-react';
+import { Mic, AtSign, X } from 'lucide-react';
 import { useAgentStore } from '../../stores/agentStore';
 import { cn } from '../../utils/cn';
 import { ToolsDropdown } from './ToolsDropdown';
@@ -156,7 +156,7 @@ export function ChatInput({
     : null;
 
   return (
-    <div className="border-t border-ios-separator bg-ios-card p-3">
+    <div className="border-t border-ios-separator bg-ios-card py-3 px-4">
       <div className="max-w-2xl mx-auto relative">
         {/* Selected mention badge */}
         {selectedAgent && (
@@ -243,27 +243,14 @@ export function ChatInput({
             )}
           </div>
 
-          {/* Send/Mic button - sticky right */}
+          {/* Mic button - sticky right */}
           <div className="flex-shrink-0">
-            {content.trim() ? (
-              <button
-                onClick={handleSend}
-                disabled={disabled}
-                className={cn(
-                  'w-9 h-9 rounded-full flex items-center justify-center text-white transition-colors',
-                  disabled ? 'bg-ios-blue/50 cursor-not-allowed' : 'bg-ios-blue hover:bg-blue-600'
-                )}
-              >
-                <Send size={18} />
-              </button>
-            ) : (
-              <button
-                className="w-9 h-9 rounded-full flex items-center justify-center text-ios-blue hover:bg-ios-secondary transition-colors"
-                disabled={disabled}
-              >
-                <Mic size={20} />
-              </button>
-            )}
+            <button
+              className="w-9 h-9 rounded-full flex items-center justify-center text-ios-blue hover:bg-ios-secondary transition-colors"
+              disabled={disabled}
+            >
+              <Mic size={20} />
+            </button>
           </div>
         </div>
       </div>
