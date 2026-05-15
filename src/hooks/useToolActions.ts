@@ -40,15 +40,18 @@ export function useToolActions(options: UseToolActionsOptions = {}) {
       try {
         switch (actionId) {
           case 'open-vscode':
-            // Open VS Code via backend API
+            // Open VS Code using vscode:// URL scheme (works from browser)
             try {
-              const response = await settingsApi.openVSCode({
-                conversation_id: conversationId,
-              });
-              if (response.success) {
-                return { success: true };
-              }
-              return { success: false, error: response.message };
+              // Get workspace path from backend settings
+              const appSettings = await settingsApi.getApp();
+              const workspacePath = appSettings.default_workspace;
+              
+              // Use vscode:// URL scheme to open in VS Code
+              // This works on macOS, Windows, and Linux when VS Code is installed
+              const vscodeUrl = `vscode://file${workspacePath}`;
+              window.open(vscodeUrl, '_self');
+              
+              return { success: true };
             } catch (error) {
               return { 
                 success: false, 
