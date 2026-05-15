@@ -598,14 +598,14 @@ function ToggleSwitch({ checked, onChange }: ToggleSwitchProps) {
     <button
       onClick={() => onChange(!checked)}
       className={cn(
-        'w-12 h-7 rounded-full transition-colors relative',
+        'w-11 h-[26px] rounded-full transition-colors relative',
         checked ? 'bg-ios-blue' : 'bg-ios-separator'
       )}
     >
       <span
         className={cn(
-          'absolute top-0.5 w-6 h-6 bg-white rounded-full shadow transition-transform',
-          checked ? 'translate-x-5' : 'translate-x-0.5'
+          'absolute top-0.5 left-0.5 w-[22px] h-[22px] bg-white rounded-full shadow transition-transform',
+          checked ? 'translate-x-[18px]' : ''
         )}
       />
     </button>
