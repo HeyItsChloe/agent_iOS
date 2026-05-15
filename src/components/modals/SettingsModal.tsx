@@ -209,6 +209,34 @@ function ToolbarSettingsPanel() {
 
   return (
     <div className="space-y-6">
+      {/* Agent Restrictions */}
+      {hasAnyGitButtonEnabled && (
+        <div>
+          <h4 className="text-sm font-semibold text-ios-text mb-3">Agent Restrictions</h4>
+          <div className="bg-ios-secondary rounded-lg p-3">
+            <label className="flex items-center justify-between cursor-pointer">
+              <div className="flex items-center gap-2">
+                <span className="text-lg">🛡️</span>
+                <div>
+                  <span className="text-sm text-ios-text block">Block OpenHands from git actions</span>
+                  <span className="text-xs text-ios-text-secondary">Only you can push, pull, commit, or switch branches</span>
+                </div>
+              </div>
+              <ToggleSwitch 
+                checked={toolbar.blockAgentGitActions} 
+                onChange={handleBlockAgentToggle} 
+              />
+            </label>
+          </div>
+          {toolbar.blockAgentGitActions && (
+            <p className="text-xs text-ios-text-secondary mt-2 px-1">
+              ⚠️ When enabled, OpenHands cannot execute git commands automatically. 
+              Use the toolbar buttons or send a prompt to perform git actions yourself.
+            </p>
+          )}
+        </div>
+      )}
+      
       <div>
         <h4 className="text-sm font-semibold text-ios-text mb-3">Git Toolbar Buttons</h4>
         <p className="text-xs text-ios-text-secondary mb-4">
@@ -278,34 +306,6 @@ function ToolbarSettingsPanel() {
           </label>
         </div>
       </div>
-      
-      {/* Agent Restrictions */}
-      {hasAnyGitButtonEnabled && (
-        <div>
-          <h4 className="text-sm font-semibold text-ios-text mb-3">Agent Restrictions</h4>
-          <div className="bg-ios-secondary rounded-lg p-3">
-            <label className="flex items-center justify-between cursor-pointer">
-              <div className="flex items-center gap-2">
-                <span className="text-lg">🛡️</span>
-                <div>
-                  <span className="text-sm text-ios-text block">Block OpenHands from git actions</span>
-                  <span className="text-xs text-ios-text-secondary">Only you can push, pull, commit, or switch branches</span>
-                </div>
-              </div>
-              <ToggleSwitch 
-                checked={toolbar.blockAgentGitActions} 
-                onChange={handleBlockAgentToggle} 
-              />
-            </label>
-          </div>
-          {toolbar.blockAgentGitActions && (
-            <p className="text-xs text-ios-text-secondary mt-2 px-1">
-              ⚠️ When enabled, OpenHands cannot execute git commands automatically. 
-              Use the toolbar buttons or send a prompt to perform git actions yourself.
-            </p>
-          )}
-        </div>
-      )}
     </div>
   );
 }
