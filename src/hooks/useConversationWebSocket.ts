@@ -1,6 +1,5 @@
 import { useEffect, useRef, useState, useCallback } from 'react';
 import { useConversationStore } from '../stores/conversationStore';
-import { useAgentStore } from '../stores/agentStore';
 import type { Message } from '../types/message';
 import type { EventType } from '../types/events';
 
@@ -24,8 +23,6 @@ export function useConversationWebSocket(
   const [typingAgents, setTypingAgents] = useState<string[]>([]);
   
   const { addMessage, updateMessage, conversations } = useConversationStore();
-  const { agents } = useAgentStore();
-  const agentsArray = Array.from(agents.values());
 
   const connect = useCallback(() => {
     if (!conversationId) return;
@@ -136,7 +133,7 @@ export function useConversationWebSocket(
       default:
         console.log('[WS] Unknown event type:', eventType, data);
     }
-  }, [conversationId, addMessage, agentsArray]);
+  }, [conversationId, addMessage]);
 
   const handleMessageReceived = useCallback((data: { 
     message_id?: string; 
@@ -169,16 +166,14 @@ export function useConversationWebSocket(
       return;
     }
 
-    const agent = data.agent_id ? agentsArray.find(a => a.id === data.agent_id) : null;
-
     const message: Message = {
       id: data.message_id || `msg-${Date.now()}`,
       conversationId: data.conversation_id || conversationId,
       content: data.content || '',
       sender: 'agent',
       agentId: data.agent_id,
-      agentName: data.agent_name || agent?.name,
-      agentColor: data.agent_color || agent?.color,
+      agentName: data.agent_name,
+      agentColor: data.agent_color,
       status: 'sent',
       timestamp: new Date(data.timestamp || Date.now()),
       subAgentResults: data.sub_agent_results || [],
@@ -190,7 +185,7 @@ export function useConversationWebSocket(
     if (data.agent_id) {
       setTypingAgents(prev => prev.filter(id => id !== data.agent_id));
     }
-  }, [conversationId, addMessage, updateMessage, conversations, agentsArray]);
+  }, [conversationId, addMessage, updateMessage, conversations]);
 
   const sendMessage = useCallback((content: string, mentionAgentId?: string) => {
     if (!wsRef.current || wsRef.current.readyState !== WebSocket.OPEN) {
