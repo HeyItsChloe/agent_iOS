@@ -23,10 +23,6 @@ export function useToolActions(options: UseToolActionsOptions = {}) {
    * Check if running in Electron environment.
    */
   const isElectron = typeof window !== 'undefined' && !!window.electronAPI?.isElectron;
-  
-  // DEBUG LOG
-  console.log('[useToolActions] window.electronAPI:', typeof window !== 'undefined' ? window.electronAPI : 'undefined');
-  console.log('[useToolActions] isElectron:', isElectron);
 
   /**
    * Execute a tool action by ID.
