@@ -28,6 +28,7 @@ interface ConversationState {
   setSummaries: (summaries: ConversationSummary[]) => void;
   setActiveConversation: (id: string | null) => void;
   
+  createConversation: (params: { title?: string; agentIds: string[]; type: Conversation['type']; skillIds?: string[] }) => string;
   addConversation: (conversation: Conversation) => void;
   updateConversation: (id: string, updates: Partial<Conversation>) => void;
   deleteConversation: (id: string) => void;
@@ -75,6 +76,28 @@ export const useConversationStore = create<ConversationState>((set, get) => ({
   setSummaries: (summaries) => set({ summaries }),
   
   setActiveConversation: (id) => set({ activeConversationId: id }),
+  
+  createConversation: (params) => {
+    const id = `conv-${Date.now()}`;
+    const conversation: Conversation = {
+      id,
+      title: params.title || null,
+      type: params.type,
+      agentIds: params.agentIds,
+      skillIds: params.skillIds || [],
+      messages: [],
+      createdAt: new Date(),
+      updatedAt: new Date(),
+      typingAgents: {},
+      isArchived: false,
+      isMuted: false,
+      isStopped: false,
+    };
+    const conversations = new Map(get().conversations);
+    conversations.set(id, conversation);
+    set({ conversations });
+    return id;
+  },
   
   addConversation: (conversation) => {
     const conversations = new Map(get().conversations);

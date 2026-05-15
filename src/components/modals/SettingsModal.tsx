@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useSettingsStore } from '../../stores/settingsStore';
-import { Key, Info, CheckCircle, XCircle, Loader2 } from 'lucide-react';
+import { Key, Info, CheckCircle, XCircle, Loader2, Server } from 'lucide-react';
 import { cn } from '../../utils/cn';
 import type { ModelConfig, LLMSettings, TestConnectionResult, SDKStatus } from '../../api/client';
 

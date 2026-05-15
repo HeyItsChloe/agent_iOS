@@ -19,6 +19,8 @@ export interface Conversation {
   updatedAt: Date;
   typingAgents: Record<string, boolean>;
   isArchived: boolean;
+  isMuted: boolean;
+  isStopped: boolean;
 }
 
 /** Request to create a new conversation */
@@ -55,6 +57,8 @@ export interface ConversationFromAPI {
   updated_at: string;
   typing_agents: Record<string, boolean>;
   is_archived: boolean;
+  is_muted: boolean;
+  is_stopped: boolean;
 }
 
 /** Conversation summary from API */
@@ -85,6 +89,8 @@ export function parseConversation(api: ConversationFromAPI): Conversation {
     updatedAt: new Date(api.updated_at),
     typingAgents: api.typing_agents,
     isArchived: api.is_archived,
+    isMuted: api.is_muted ?? false,
+    isStopped: api.is_stopped ?? false,
   };
 }
 

@@ -15,6 +15,8 @@ function createTestConversation(overrides: Partial<Conversation> = {}): Conversa
     updatedAt: new Date(),
     typingAgents: {},
     isArchived: false,
+    isMuted: false,
+    isStopped: false,
     ...overrides,
   };
 }

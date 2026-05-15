@@ -13,6 +13,7 @@ const AgentSelectorModal = lazy(() => import('../modals/AgentSelectorModal').the
 const SkillSelectorModal = lazy(() => import('../modals/SkillSelectorModal').then(m => ({ default: m.SkillSelectorModal })));
 const SettingsModal = lazy(() => import('../modals/SettingsModal').then(m => ({ default: m.SettingsModal })));
 const ContactsModal = lazy(() => import('../modals/ContactsModal').then(m => ({ default: m.ContactsModal })));
+const ConversationInfoModal = lazy(() => import('../modals/ConversationInfoModal').then(m => ({ default: m.ConversationInfoModal })));
 
 // Modal loading fallback
 const ModalFallback = memo(function ModalFallback() {
@@ -32,6 +33,7 @@ export function MainLayout() {
   const [showSkillSelector, setShowSkillSelector] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
   const [showContacts, setShowContacts] = useState(false);
+  const [showConversationInfo, setShowConversationInfo] = useState(false);
   const [contactsInitialTab, setContactsInitialTab] = useState<'all' | 'new'>('all');
   const [mobileShowChat, setMobileShowChat] = useState(false);
   const [announcement, setAnnouncement] = useState('');
@@ -108,10 +110,13 @@ export function MainLayout() {
   const handleCloseSkillSelector = useCallback(() => setShowSkillSelector(false), []);
   const handleCloseContacts = useCallback(() => setShowContacts(false), []);
   
-  // Info button handler - for now just logs, can be extended to show info modal
+  // Info button handler - opens conversation info modal
   const handleOpenInfo = useCallback(() => {
-    // TODO: Implement conversation info modal showing contacts, shared files, etc.
-    console.log('Open conversation info');
+    setShowConversationInfo(true);
+  }, []);
+  
+  const handleCloseConversationInfo = useCallback(() => {
+    setShowConversationInfo(false);
   }, []);
 
   const handleChatCreated = useCallback((id: string) => {
@@ -196,6 +201,13 @@ export function MainLayout() {
             <ContactsModal
               onClose={handleCloseContacts}
               initialTab={contactsInitialTab}
+            />
+          )}
+          
+          {showConversationInfo && (
+            <ConversationInfoModal
+              isOpen={showConversationInfo}
+              onClose={handleCloseConversationInfo}
             />
           )}
         </Suspense>

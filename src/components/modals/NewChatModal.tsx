@@ -74,6 +74,8 @@ export function NewChatModal({ onClose, onCreated }: NewChatModalProps) {
         updatedAt: new Date(response.updated_at),
         typingAgents: response.typing_agents || {},
         isArchived: response.is_archived || false,
+        isMuted: response.is_muted || false,
+        isStopped: response.is_stopped || false,
       };
 
       addConversation(newConversation);
@@ -93,6 +95,8 @@ export function NewChatModal({ onClose, onCreated }: NewChatModalProps) {
         updatedAt: new Date(),
         typingAgents: {},
         isArchived: false,
+        isMuted: false,
+        isStopped: false,
       };
 
       addConversation(fallbackConversation);
