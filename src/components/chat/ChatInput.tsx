@@ -175,7 +175,7 @@ export function ChatInput({
       )}
 
       {/* Input area */}
-      <div className="flex items-center gap-3" style={{ marginBottom: '-8px' }}>
+      <div className="flex items-center gap-3" style={{ marginTop: '8px' }}>
         {/* Plus button - sticky left */}
         <div className="flex-shrink-0">
           <ToolsDropdown
