@@ -132,8 +132,8 @@ function ConversationItem({ conversation, isActive, onClick, agents }: Conversat
         isActive ? 'bg-ios-blue/10' : ''
       }`}
     >
-      {/* Avatar(s) - iOS Messages style */}
-      <div className="flex-shrink-0 flex items-center">
+      {/* Avatar(s) - iOS Messages style cluster */}
+      <div className="flex-shrink-0 relative w-12 h-12">
         {conversationAgents.length === 0 ? (
           <div className="w-12 h-12 rounded-full bg-gradient-to-b from-gray-300 to-gray-400 flex items-center justify-center text-white text-lg">
             🤖
@@ -146,17 +146,35 @@ function ConversationItem({ conversation, isActive, onClick, agents }: Conversat
             {conversationAgents[0]?.avatar || conversationAgents[0]?.name?.[0] || '🤖'}
           </div>
         ) : (
-          <div className="flex -space-x-3">
-            {conversationAgents.map((agent, i) => (
-              <div
-                key={agent?.id || i}
-                className="w-10 h-10 rounded-full flex items-center justify-center text-white text-sm border-2 border-ios-sidebar"
-                style={{ backgroundColor: agent?.color || '#007AFF', zIndex: conversationAgents.length - i }}
-              >
-                {agent?.avatar || agent?.name?.[0] || '🤖'}
-              </div>
-            ))}
-          </div>
+          <>
+            {/* Position bubbles in iOS-style cluster */}
+            {conversationAgents.slice(0, 4).map((agent, i) => {
+              // Cluster positions: [bottom-left, top-right, top-left, bottom-right]
+              const positions = [
+                { bottom: 0, left: 0, size: 'w-9 h-9', text: 'text-sm', z: 40 },
+                { top: 0, right: 0, size: 'w-7 h-7', text: 'text-xs', z: 30 },
+                { top: 2, left: 6, size: 'w-6 h-6', text: 'text-[10px]', z: 20 },
+                { bottom: 2, right: 2, size: 'w-6 h-6', text: 'text-[10px]', z: 10 },
+              ];
+              const pos = positions[i];
+              return (
+                <div
+                  key={agent?.id || i}
+                  className={`absolute ${pos.size} rounded-full flex items-center justify-center text-white ${pos.text} border-2 border-ios-sidebar`}
+                  style={{
+                    backgroundColor: agent?.color || '#007AFF',
+                    zIndex: pos.z,
+                    top: pos.top,
+                    right: pos.right,
+                    bottom: pos.bottom,
+                    left: pos.left,
+                  }}
+                >
+                  {agent?.avatar || agent?.name?.[0] || '🤖'}
+                </div>
+              );
+            })}
+          </>
         )}
       </div>
 
@@ -197,35 +215,48 @@ function CompactConversationItem({ conversation, isActive, onClick, agents }: Co
       onClick={onClick}
       className={`w-full p-2 flex justify-center ${isActive ? 'bg-ios-blue/10' : ''}`}
     >
-      {conversationAgents.length === 0 ? (
-        <div className="w-10 h-10 rounded-full bg-gradient-to-br from-ios-blue to-purple-500 flex items-center justify-center text-white text-sm">
-          {conversation.title?.[0] || '?'}
-        </div>
-      ) : conversationAgents.length === 1 ? (
-        <div
-          className="w-10 h-10 rounded-full flex items-center justify-center text-white text-sm"
-          style={{ backgroundColor: conversationAgents[0]?.color || '#007AFF' }}
-        >
-          {conversationAgents[0]?.avatar || conversationAgents[0]?.name?.[0] || '🤖'}
-        </div>
-      ) : (
-        <div className="flex -space-x-2">
-          {conversationAgents.slice(0, 3).map((agent, i) => (
-            <div
-              key={agent?.id || i}
-              className="w-8 h-8 rounded-full flex items-center justify-center text-white text-xs border-2 border-ios-sidebar"
-              style={{ backgroundColor: agent?.color || '#007AFF', zIndex: conversationAgents.length - i }}
-            >
-              {agent?.avatar || agent?.name?.[0] || '🤖'}
-            </div>
-          ))}
-          {conversationAgents.length > 3 && (
-            <div className="w-8 h-8 rounded-full bg-ios-secondary flex items-center justify-center text-ios-text-secondary text-[10px] border-2 border-ios-sidebar">
-              +{conversationAgents.length - 3}
-            </div>
-          )}
-        </div>
-      )}
+      <div className="relative w-10 h-10">
+        {conversationAgents.length === 0 ? (
+          <div className="w-10 h-10 rounded-full bg-gradient-to-br from-ios-blue to-purple-500 flex items-center justify-center text-white text-sm">
+            {conversation.title?.[0] || '?'}
+          </div>
+        ) : conversationAgents.length === 1 ? (
+          <div
+            className="w-10 h-10 rounded-full flex items-center justify-center text-white text-sm"
+            style={{ backgroundColor: conversationAgents[0]?.color || '#007AFF' }}
+          >
+            {conversationAgents[0]?.avatar || conversationAgents[0]?.name?.[0] || '🤖'}
+          </div>
+        ) : (
+          <>
+            {conversationAgents.slice(0, 4).map((agent, i) => {
+              const positions = [
+                { bottom: 0, left: 0, size: 'w-7 h-7', text: 'text-xs', z: 40 },
+                { top: 0, right: 0, size: 'w-6 h-6', text: 'text-[10px]', z: 30 },
+                { top: 1, left: 4, size: 'w-5 h-5', text: 'text-[8px]', z: 20 },
+                { bottom: 1, right: 1, size: 'w-5 h-5', text: 'text-[8px]', z: 10 },
+              ];
+              const pos = positions[i];
+              return (
+                <div
+                  key={agent?.id || i}
+                  className={`absolute ${pos.size} rounded-full flex items-center justify-center text-white ${pos.text} border-2 border-ios-sidebar`}
+                  style={{
+                    backgroundColor: agent?.color || '#007AFF',
+                    zIndex: pos.z,
+                    top: pos.top,
+                    right: pos.right,
+                    bottom: pos.bottom,
+                    left: pos.left,
+                  }}
+                >
+                  {agent?.avatar || agent?.name?.[0] || '🤖'}
+                </div>
+              );
+            })}
+          </>
+        )}
+      </div>
     </button>
   );
 }
