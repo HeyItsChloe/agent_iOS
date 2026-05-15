@@ -468,12 +468,12 @@ ipcMain.handle('tool:open-terminal-vscode', async () => {
 
   try {
     if (process.platform === 'darwin') {
-      // macOS - Use code CLI with PATH including /usr/local/bin
+      // macOS - Open VS Code, create new window, open folder via Command Palette
       // Note: key code 50 is backtick on US keyboard layout
       const escapedDir = workspaceDir.replace(/'/g, "'\\''");
       const script = `
--- Use code CLI with proper PATH to open new window with folder
-do shell script "export PATH=/usr/local/bin:$PATH && code --new-window '${escapedDir}'"
+-- Open VS Code
+do shell script "open -a 'Visual Studio Code'"
 
 tell application "System Events"
   -- Wait for VS Code to be frontmost
@@ -481,7 +481,34 @@ tell application "System Events"
     if (name of first application process whose frontmost is true) is "Code" then exit repeat
     delay 0.1
   end repeat
-  delay 0.8
+  delay 0.3
+  
+  -- Cmd+Shift+N for new window
+  keystroke "n" using {command down, shift down}
+  delay 0.5
+  
+  -- Cmd+Shift+P to open Command Palette
+  keystroke "p" using {command down, shift down}
+  delay 0.3
+  
+  -- Type "Open Folder" and press Enter
+  keystroke "Open Folder"
+  delay 0.3
+  keystroke return
+  delay 0.5
+  
+  -- In file dialog, Cmd+Shift+G to go to path
+  keystroke "g" using {command down, shift down}
+  delay 0.3
+  
+  -- Type the path
+  keystroke "${escapedDir}"
+  keystroke return
+  delay 0.3
+  
+  -- Press Enter to open
+  keystroke return
+  delay 1.0
   
   -- Open terminal with Ctrl+\`
   key code 50 using control down
