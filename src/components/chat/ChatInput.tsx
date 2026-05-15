@@ -220,10 +220,10 @@ export function ChatInput({
             disabled={disabled}
             rows={1}
             className={cn(
-              'w-full px-4 py-2 bg-ios-secondary rounded-2xl resize-none text-ios-text placeholder-ios-text-secondary focus:outline-none focus:ring-2 focus:ring-ios-blue',
+              'w-full px-4 py-1.5 bg-ios-secondary rounded-2xl resize-none text-ios-text placeholder-ios-text-secondary focus:outline-none focus:ring-2 focus:ring-ios-blue leading-tight',
               disabled && 'opacity-50 cursor-not-allowed'
             )}
-            style={{ minHeight: '40px', maxHeight: '120px' }}
+            style={{ minHeight: '36px', maxHeight: '120px' }}
           />
           {/* @ mention hint */}
           {agentIds.length > 1 && !content && (
