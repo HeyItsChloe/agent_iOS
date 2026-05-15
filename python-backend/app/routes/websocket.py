@@ -28,55 +28,76 @@ async def conversation_stream(websocket: WebSocket, conversation_id: str):
     - error: An error occurred
     - agent_state: Agent state changed
     """
+    print(f"[WebSocket] ========== CONNECTION REQUEST ==========")
+    print(f"[WebSocket] conversation_id: {conversation_id}")
+    
     # Verify conversation exists
     conversation = conversation_service.get_conversation(conversation_id)
     if not conversation:
+        print(f"[WebSocket] ERROR: Conversation not found: {conversation_id}")
         await websocket.close(code=4004, reason="Conversation not found")
         return
     
+    print(f"[WebSocket] Conversation found, accepting connection...")
+    
     # Accept connection
     await websocket.accept()
+    print(f"[WebSocket] Connection accepted")
     
     # Register WebSocket with service
     conversation_service.register_websocket(conversation_id, websocket)
+    print(f"[WebSocket] Registered with conversation service")
     
     try:
         # Send initial conversation state
+        print(f"[WebSocket] Sending initial state...")
         await websocket.send_json({
             "type": "connected",
             "conversation_id": conversation_id,
             "conversation": conversation.model_dump(mode='json') if hasattr(conversation, 'model_dump') else conversation,
         })
+        print(f"[WebSocket] Initial state sent")
         
         # Listen for messages from client
+        print(f"[WebSocket] Entering message loop...")
         while True:
             try:
                 # Receive message from client
+                print(f"[WebSocket] Waiting for message...")
                 data = await websocket.receive_text()
+                print(f"[WebSocket] Received: {data[:200]}...")
                 message_data = json.loads(data)
                 
                 msg_type = message_data.get("type", "message")
+                print(f"[WebSocket] Message type: {msg_type}")
                 
                 if msg_type == "message":
                     # Handle user message
                     content = message_data.get("content", "")
                     mention_agent_id = message_data.get("mention_agent_id")
                     
+                    print(f"[WebSocket] User message: {content[:100]}...")
+                    print(f"[WebSocket] Mention agent: {mention_agent_id}")
+                    
                     if content.strip():
                         # Send message and broadcast response via WebSocket
+                        print(f"[WebSocket] Calling handle_websocket_message...")
                         await conversation_service.handle_websocket_message(
                             conversation_id=conversation_id,
                             content=content,
                             mention_agent_id=mention_agent_id,
                             websocket=websocket,
                         )
+                        print(f"[WebSocket] handle_websocket_message completed")
                 
                 elif msg_type == "ping":
                     # Respond to ping
+                    print(f"[WebSocket] Responding to ping")
                     await websocket.send_json({"type": "pong"})
                 
                 elif msg_type == "get_state":
                     # Return current conversation state
+                    print(f"[WebSocket] Getting state...")
                     conv = conversation_service.get_conversation(conversation_id)
                     if conv:
                         await websocket.send_json({
@@ -84,7 +105,8 @@ async def conversation_stream(websocket: WebSocket, conversation_id: str):
                             "conversation": conv.model_dump(mode='json') if hasattr(conv, 'model_dump') else conv,
                         })
                 
-            except json.JSONDecodeError:
+            except json.JSONDecodeError as e:
+                print(f"[WebSocket] JSON decode error: {e}")
                 await websocket.send_json({
                     "type": "error",
                     "error_code": "INVALID_JSON",
@@ -93,10 +115,17 @@ async def conversation_stream(websocket: WebSocket, conversation_id: str):
     
     except WebSocketDisconnect:
         # Client disconnected
+        print(f"[WebSocket] Client disconnected")
         pass
+    
+    except Exception as e:
+        print(f"[WebSocket] ERROR in message loop: {e}")
+        import traceback
+        traceback.print_exc()
     
     finally:
         # Unregister WebSocket
+        print(f"[WebSocket] Unregistering and closing...")
         conversation_service.unregister_websocket(conversation_id, websocket)
 
 

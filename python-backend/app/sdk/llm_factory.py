@@ -121,16 +121,25 @@ class OpenHandsCloudClient:
         """Wait for conversation to complete."""
         import time
         start_time = time.time()
+        poll_count = 0
+        
+        print(f"[OpenHands Cloud] wait_for_completion: Starting polling for {conversation_id}")
         
         while time.time() - start_time < timeout:
+            poll_count += 1
+            elapsed = time.time() - start_time
             conv = self.get_conversation(conversation_id)
             status = conv.get("execution_status", "")
             
+            print(f"[OpenHands Cloud] wait_for_completion: Poll #{poll_count} ({elapsed:.1f}s) - status={status}")
+            
             if status in ("finished", "error", "stopped"):
+                print(f"[OpenHands Cloud] wait_for_completion: Completed with status={status}")
                 return conv
             
             time.sleep(2.0)
         
+        print(f"[OpenHands Cloud] wait_for_completion: TIMEOUT after {timeout}s ({poll_count} polls)")
         raise Exception(f"Conversation timed out after {timeout}s")
     
     def run_message(self, message: str, timeout: float = 300.0) -> tuple[str, str]:
@@ -145,51 +154,91 @@ class OpenHandsCloudClient:
         """
         import time
         
+        print(f"[OpenHands Cloud] ========== START run_message ==========")
+        print(f"[OpenHands Cloud] Message: {message[:100]}...")
+        print(f"[OpenHands Cloud] Timeout: {timeout}s")
+        
         # Start conversation
+        print(f"[OpenHands Cloud] Calling start_conversation...")
         start = self.start_conversation(message)
-        print(f"[OpenHands Cloud] Started conversation: {start}")
+        print(f"[OpenHands Cloud] Started conversation response: {start}")
         
         # Get app_conversation_id
         conv_id = start.get("app_conversation_id")
+        print(f"[OpenHands Cloud] Initial conv_id from response: {conv_id}")
+        
         if not conv_id:
             # Poll start task
             start_task_id = start.get("id")
+            print(f"[OpenHands Cloud] No conv_id, polling start_task_id: {start_task_id}")
             if not start_task_id:
                 raise Exception("No start_task_id in response")
             
-            for _ in range(30):
+            for poll_attempt in range(30):
                 task = self.get_start_task(start_task_id)
+                print(f"[OpenHands Cloud] Poll {poll_attempt+1}/30 - Task status: {task}")
                 conv_id = task.get("app_conversation_id")
                 if conv_id:
+                    print(f"[OpenHands Cloud] Got conv_id from polling: {conv_id}")
                     break
                 time.sleep(1.0)
             
             if not conv_id:
-                raise Exception("Failed to get conversation ID")
+                raise Exception("Failed to get conversation ID after 30 polls")
         
-        print(f"[OpenHands Cloud] Conversation ID: {conv_id}")
+        print(f"[OpenHands Cloud] Final Conversation ID: {conv_id}")
         print(f"[OpenHands Cloud] View at: {self.base_url}/conversations/{conv_id}")
         
         # Wait for completion
-        self.wait_for_completion(conv_id, timeout)
+        print(f"[OpenHands Cloud] Waiting for completion...")
+        completion_result = self.wait_for_completion(conv_id, timeout)
+        print(f"[OpenHands Cloud] Completion result: {completion_result}")
+        print(f"[OpenHands Cloud] Execution status: {completion_result.get('execution_status')}")
         
         # Get events and extract assistant response
+        print(f"[OpenHands Cloud] Fetching events...")
         events = self.get_events(conv_id)
+        print(f"[OpenHands Cloud] Got {len(events)} events")
+        
+        # Debug: Print all event types
+        for i, event in enumerate(events):
+            source = event.get("source", "unknown")
+            kind = event.get("kind", "unknown")
+            print(f"[OpenHands Cloud] Event {i}: source={source}, kind={kind}")
         
         # Find the last agent message
         assistant_response = ""
         for event in reversed(events):
             if event.get("source") == "agent" and event.get("kind") == "MessageEvent":
+                print(f"[OpenHands Cloud] Found agent MessageEvent: {event}")
                 # Check llm_message structure
                 llm_msg = event.get("llm_message", {})
                 if llm_msg:
+                    print(f"[OpenHands Cloud] llm_message: {llm_msg}")
                     content = llm_msg.get("content", [])
+                    print(f"[OpenHands Cloud] content: {content}")
                     for c in content:
                         if isinstance(c, dict) and c.get("type") == "text":
                             assistant_response = c.get("text", "")
+                            print(f"[OpenHands Cloud] Found text response: {assistant_response[:200]}...")
                             break
                     if assistant_response:
                         break
+                else:
+                    print(f"[OpenHands Cloud] No llm_message in event, checking direct content...")
+                    # Try alternative content extraction
+                    content = event.get("content", "")
+                    if content:
+                        assistant_response = content
+                        print(f"[OpenHands Cloud] Found direct content: {content[:200]}...")
+                        break
+        
+        if not assistant_response:
+            print(f"[OpenHands Cloud] WARNING: No assistant response extracted from events!")
+            print(f"[OpenHands Cloud] Raw events for debugging: {events}")
+        
+        print(f"[OpenHands Cloud] ========== END run_message ==========")
+        print(f"[OpenHands Cloud] Returning: conv_id={conv_id}, response_length={len(assistant_response)}")
         
         return conv_id, assistant_response
 

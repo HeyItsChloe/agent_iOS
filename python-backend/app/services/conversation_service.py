@@ -152,10 +152,18 @@ class ConversationService:
         websocket: WebSocket,
     ):
         """Handle a message from WebSocket and stream responses."""
+        print(f"[ConvService] ========== handle_websocket_message START ==========")
+        print(f"[ConvService] conversation_id: {conversation_id}")
+        print(f"[ConvService] content: {content[:100]}...")
+        print(f"[ConvService] mention_agent_id: {mention_agent_id}")
+        
         conversation = self._conversations.get(conversation_id)
         if not conversation:
+            print(f"[ConvService] ERROR: Conversation not found")
             await self._send_error(websocket, conversation_id, "Conversation not found")
             return
+        
+        print(f"[ConvService] Conversation found with {len(conversation.agent_ids)} agents")
         
         # Create and store user message
         user_message = Message(
@@ -166,8 +174,10 @@ class ConversationService:
             status=MessageStatus.SENT,
         )
         conversation.messages.append(user_message)
+        print(f"[ConvService] User message created: {user_message.id}")
         
         # Send user message confirmation
+        print(f"[ConvService] Broadcasting user message event...")
         await self._broadcast_event(
             conversation_id,
             MessageEvent(
@@ -179,6 +189,7 @@ class ConversationService:
         )
         
         # Simulate typing indicator
+        print(f"[ConvService] Broadcasting typing indicators...")
         for agent_id in conversation.agent_ids:
             await self._broadcast_event(
                 conversation_id,
@@ -190,16 +201,27 @@ class ConversationService:
                 ),
             )
         
-        # TODO: Integrate with OpenHands SDK for real responses
-        # For now, generate mock response
-        agent_response = await self._generate_mock_response(
-            conversation, content, mention_agent_id
-        )
+        # Generate response using SDK
+        print(f"[ConvService] Calling _generate_mock_response (which uses SDK)...")
+        try:
+            agent_response = await self._generate_mock_response(
+                conversation, content, mention_agent_id
+            )
+            print(f"[ConvService] _generate_mock_response returned: {agent_response}")
+            if agent_response:
+                print(f"[ConvService] Response content: {agent_response.content[:200] if agent_response.content else 'None'}...")
+        except Exception as e:
+            print(f"[ConvService] ERROR in _generate_mock_response: {e}")
+            import traceback
+            traceback.print_exc()
+            agent_response = None
         
         if agent_response:
             conversation.messages.append(agent_response)
+            print(f"[ConvService] Agent response appended to conversation")
             
             # Stop typing indicator
+            print(f"[ConvService] Stopping typing indicators...")
             for agent_id in conversation.agent_ids:
                 await self._broadcast_event(
                     conversation_id,
@@ -213,6 +235,7 @@ class ConversationService:
                 )
             
             # Send agent response
+            print(f"[ConvService] Broadcasting agent response event...")
             await self._broadcast_event(
                 conversation_id,
                 MessageEvent(
@@ -225,8 +248,12 @@ class ConversationService:
                     agent_color=agent_response.agent_color,
                 ),
             )
+            print(f"[ConvService] Agent response broadcast complete")
+        else:
+            print(f"[ConvService] WARNING: No agent response generated!")
         
         conversation.updated_at = datetime.utcnow()
+        print(f"[ConvService] ========== handle_websocket_message END ==========")
     
     def register_websocket(self, conversation_id: str, websocket: WebSocket):
         """Register a WebSocket connection for a conversation."""
@@ -345,15 +372,24 @@ class ConversationService:
         This starts a conversation on OpenHands Cloud infrastructure,
         which uses your account's LLM configuration.
         """
+        print(f"[ConvService] ========== _run_openhands_cloud_conversation START ==========")
+        print(f"[ConvService] conversation.id: {conversation.id}")
+        print(f"[ConvService] user_content: {user_content[:100]}...")
+        print(f"[ConvService] agent_id: {agent_id}")
+        print(f"[ConvService] agent_model.name: {agent_model.name}")
+        
         if not settings.openhands_api_key:
+            print(f"[ConvService] ERROR: No OpenHands API key configured")
             return await self._generate_fallback_response(
                 conversation, user_content, agent_id,
                 "OpenHands API key not configured. Please set it in Settings."
             )
         
         api_key = settings.openhands_api_key.get_secret_value()
+        print(f"[ConvService] API key obtained (length: {len(api_key)})")
         
         # Send typing indicator
+        print(f"[ConvService] Sending typing indicator...")
         await self._broadcast_event(
             conversation.id,
             TypingEvent(
@@ -366,15 +402,22 @@ class ConversationService:
         
         try:
             # Run on OpenHands Cloud
+            print(f"[ConvService] Creating OpenHandsCloudClient...")
             client = OpenHandsCloudClient(api_key)
             
+            print(f"[ConvService] Calling client.run_message in executor...")
             loop = asyncio.get_event_loop()
             cloud_conv_id, response_text = await loop.run_in_executor(
                 None, 
                 lambda: client.run_message(user_content, timeout=300.0)
             )
+            print(f"[ConvService] run_message returned:")
+            print(f"[ConvService]   cloud_conv_id: {cloud_conv_id}")
+            print(f"[ConvService]   response_text length: {len(response_text) if response_text else 0}")
+            print(f"[ConvService]   response_text: {response_text[:500] if response_text else 'EMPTY'}...")
             
             # Stop typing indicator
+            print(f"[ConvService] Stopping typing indicator...")
             await self._broadcast_event(
                 conversation.id,
                 TypingEvent(
@@ -387,7 +430,12 @@ class ConversationService:
             )
             
             # Create response message
-            response_content = response_text if response_text else f"Conversation completed. View at: https://app.all-hands.dev/conversations/{cloud_conv_id}"
+            if response_text:
+                response_content = response_text
+                print(f"[ConvService] Using actual response text")
+            else:
+                response_content = f"Conversation completed. View at: https://app.all-hands.dev/conversations/{cloud_conv_id}"
+                print(f"[ConvService] WARNING: No response text, using fallback link message")
             
             message_id = str(uuid4())
             response_message = Message(
@@ -402,11 +450,15 @@ class ConversationService:
                 metadata={"cloud_conversation_id": cloud_conv_id},
             )
             
+            print(f"[ConvService] Created response message: {message_id}")
+            print(f"[ConvService] ========== _run_openhands_cloud_conversation END (SUCCESS) ==========")
+            
             # Don't broadcast here - handle_websocket_message already broadcasts the returned message
             return response_message
             
         except Exception as e:
-            print(f"[OpenHands Cloud] Error: {e}")
+            print(f"[ConvService] ========== _run_openhands_cloud_conversation ERROR ==========")
+            print(f"[ConvService] Error: {e}")
             import traceback
             traceback.print_exc()
             
