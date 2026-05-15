@@ -95,6 +95,7 @@ class ConversationService:
         )
         
         self._conversations[conversation.id] = conversation
+        self._persist_conversation(conversation)
         return ConversationResponse(**conversation.model_dump())
     
     def get_conversation(self, conversation_id: str) -> Optional[ConversationResponse]:
@@ -108,6 +109,7 @@ class ConversationService:
         """Delete a conversation."""
         if conversation_id in self._conversations:
             del self._conversations[conversation_id]
+            self._delete_persisted_conversation(conversation_id)
             return True
         return False
     
@@ -138,6 +140,9 @@ class ConversationService:
         agent_response = await self._generate_mock_response(
             conversation, content, mention_agent_id
         )
+        
+        # Persist after adding messages
+        self._persist_conversation(conversation)
         
         return {
             "user_message": user_message.model_dump(),
@@ -255,6 +260,9 @@ class ConversationService:
             print(f"[ConvService] WARNING: No agent response generated!")
         
         conversation.updated_at = datetime.utcnow()
+        
+        # Persist conversation after messages are added
+        self._persist_conversation(conversation)
         print(f"[ConvService] ========== handle_websocket_message END ==========")
     
     def register_websocket(self, conversation_id: str, websocket: WebSocket):
