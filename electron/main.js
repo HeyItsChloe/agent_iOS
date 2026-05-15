@@ -201,6 +201,16 @@ function createAppMenu() {
       ],
     },
     {
+      label: 'Settings',
+      submenu: [
+        {
+          label: 'Preferences...',
+          accelerator: 'CmdOrCtrl+,',
+          click: () => mainWindow?.webContents.send('menu-open-settings'),
+        },
+      ],
+    },
+    {
       label: 'Help',
       submenu: [
         {

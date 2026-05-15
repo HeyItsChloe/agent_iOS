@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Modal, ModalFooter } from './Modal';
 import { useAgentStore } from '../../stores/agentStore';
-import { useConversationStore } from '../../stores/conversationStore';
+import { useConversationStore, useActiveConversation } from '../../stores/conversationStore';
 import { Check, Plus, Search } from 'lucide-react';
 import { cn } from '../../utils/cn';
 
@@ -14,7 +14,8 @@ export function AgentSelectorModal({ onClose }: AgentSelectorModalProps) {
   const [showCreateForm, setShowCreateForm] = useState(false);
   
   const { agents } = useAgentStore();
-  const { activeConversation, updateConversation } = useConversationStore();
+  const activeConversation = useActiveConversation();
+  const { updateConversation } = useConversationStore();
 
   const [selectedAgents, setSelectedAgents] = useState<string[]>(
     activeConversation?.agentIds || []

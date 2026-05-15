@@ -17,8 +17,9 @@ export function ContactsModal({ onClose, initialTab = 'all' }: ContactsModalProp
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedAgentId, setSelectedAgentId] = useState<string | null>(null);
   const [showNewAgentForm, setShowNewAgentForm] = useState(initialTab === 'new');
+  const [editingAgent, setEditingAgent] = useState<Agent | null>(null);
   
-  const { agents, addAgent } = useAgentStore();
+  const { agents, addAgent, updateAgent } = useAgentStore();
   const { createConversation, setActiveConversation } = useConversationStore();
   const agentsArray = Array.from(agents.values());
   
@@ -52,6 +53,20 @@ export function ContactsModal({ onClose, initialTab = 'all' }: ContactsModalProp
           addAgent(agent);
           setShowNewAgentForm(false);
           setSelectedAgentId(agent.id);
+        }}
+      />
+    );
+  }
+
+  if (editingAgent) {
+    return (
+      <EditAgentWindow
+        agent={editingAgent}
+        onClose={onClose}
+        onCancel={() => setEditingAgent(null)}
+        onSave={(updated) => {
+          updateAgent(updated.id, updated);
+          setEditingAgent(null);
         }}
       />
     );
@@ -163,6 +178,7 @@ export function ContactsModal({ onClose, initialTab = 'all' }: ContactsModalProp
               <AgentDetailView 
                 agent={selectedAgent} 
                 onMessage={() => handleStartConversation(selectedAgent)}
+                onEdit={() => setEditingAgent(selectedAgent)}
               />
             ) : (
               <div className="flex-1 flex items-center justify-center text-ios-text-secondary">
@@ -269,9 +285,10 @@ function ContactListItem({ agent, selected, onClick }: ContactListItemProps) {
 interface AgentDetailViewProps {
   agent: Agent;
   onMessage: () => void;
+  onEdit: () => void;
 }
 
-function AgentDetailView({ agent, onMessage }: AgentDetailViewProps) {
+function AgentDetailView({ agent, onMessage, onEdit }: AgentDetailViewProps) {
   return (
     <>
       {/* Large Avatar */}
@@ -296,7 +313,10 @@ function AgentDetailView({ agent, onMessage }: AgentDetailViewProps) {
         >
           <MessageSquare size={16} /> Message
         </button>
-        <button className="px-4 py-2 bg-ios-secondary text-ios-text rounded-lg text-sm font-medium hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors">
+        <button 
+          onClick={onEdit}
+          className="px-4 py-2 bg-ios-secondary text-ios-text rounded-lg text-sm font-medium hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors"
+        >
           Edit
         </button>
       </div>
@@ -343,12 +363,20 @@ interface NewAgentWindowProps {
   onSave: (agent: Agent) => void;
 }
 
+const AVAILABLE_TOOLS = [
+  { id: 'terminal', label: 'Terminal', icon: '🖥️', description: 'Execute shell commands' },
+  { id: 'file_editor', label: 'File Editor', icon: '📝', description: 'Create and edit files' },
+  { id: 'task_tracker', label: 'Task Tracker', icon: '📋', description: 'Manage tasks' },
+  { id: 'browser', label: 'Browser', icon: '🌐', description: 'Web browsing' },
+];
+
 function NewAgentWindow({ onClose, onCancel, onSave }: NewAgentWindowProps) {
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
   const [systemPrompt, setSystemPrompt] = useState('');
   const [color, setColor] = useState('#007AFF');
   const [avatar, setAvatar] = useState('🤖');
+  const [selectedTools, setSelectedTools] = useState<string[]>(['terminal', 'file_editor', 'task_tracker']);
 
   const colors = [
     '#007AFF', '#34C759', '#FF9500', '#FF3B30', 
@@ -356,6 +384,14 @@ function NewAgentWindow({ onClose, onCancel, onSave }: NewAgentWindowProps) {
   ];
 
   const avatars = ['🤖', '🧠', '💡', '🔧', '📊', '🎨', '📝', '🔍'];
+
+  const handleToggleTool = (toolId: string) => {
+    setSelectedTools(prev => 
+      prev.includes(toolId) 
+        ? prev.filter(id => id !== toolId)
+        : [...prev, toolId]
+    );
+  };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -371,7 +407,7 @@ function NewAgentWindow({ onClose, onCancel, onSave }: NewAgentWindowProps) {
       systemPrompt: systemPrompt.trim() || '',
       isBuiltin: false,
       skillIds: [],
-      toolIds: [],
+      toolIds: selectedTools,
     };
 
     onSave(newAgent);
@@ -475,6 +511,31 @@ function NewAgentWindow({ onClose, onCancel, onSave }: NewAgentWindowProps) {
                 className="flex-1 px-3 py-2 border border-ios-separator rounded-md text-sm bg-ios-card text-ios-text focus:outline-none focus:ring-2 focus:ring-ios-blue resize-none"
               />
             </div>
+
+            {/* Tools Field */}
+            <div className="flex items-start gap-3">
+              <label className="w-24 text-right text-sm text-ios-text-secondary pt-2">Tools</label>
+              <div className="flex-1 grid grid-cols-2 gap-2">
+                {AVAILABLE_TOOLS.map(tool => (
+                  <button
+                    key={tool.id}
+                    type="button"
+                    onClick={() => handleToggleTool(tool.id)}
+                    className={cn(
+                      'flex items-center gap-2 px-3 py-2 rounded-lg text-left text-sm transition-all',
+                      selectedTools.includes(tool.id)
+                        ? 'bg-ios-blue/10 border-2 border-ios-blue'
+                        : 'bg-ios-secondary border-2 border-transparent hover:bg-ios-secondary/80'
+                    )}
+                  >
+                    <span>{tool.icon}</span>
+                    <span className={selectedTools.includes(tool.id) ? 'text-ios-blue font-medium' : 'text-ios-text'}>
+                      {tool.label}
+                    </span>
+                  </button>
+                ))}
+              </div>
+            </div>
           </div>
         
           {/* Footer Buttons */}
@@ -497,6 +558,204 @@ function NewAgentWindow({ onClose, onCancel, onSave }: NewAgentWindowProps) {
               )}
             >
               Create
+            </button>
+          </div>
+        </form>
+        
+      </div>
+    </div>
+  );
+}
+
+// Edit Agent Window - macOS style
+interface EditAgentWindowProps {
+  agent: Agent;
+  onClose: () => void;
+  onCancel: () => void;
+  onSave: (agent: Agent) => void;
+}
+
+function EditAgentWindow({ agent, onClose, onCancel, onSave }: EditAgentWindowProps) {
+  const [name, setName] = useState(agent.name);
+  const [description, setDescription] = useState(agent.description || '');
+  const [systemPrompt, setSystemPrompt] = useState(agent.systemPrompt || '');
+  const [color, setColor] = useState(agent.color || '#007AFF');
+  const [avatar, setAvatar] = useState(agent.avatar || '🤖');
+  const [selectedTools, setSelectedTools] = useState<string[]>(agent.toolIds || []);
+
+  const colors = [
+    '#007AFF', '#34C759', '#FF9500', '#FF3B30', 
+    '#AF52DE', '#5856D6', '#FF2D55', '#5AC8FA'
+  ];
+
+  const avatars = ['🤖', '🧠', '💡', '🔧', '📊', '🎨', '📝', '🔍'];
+
+  const handleToggleTool = (toolId: string) => {
+    setSelectedTools(prev => 
+      prev.includes(toolId) 
+        ? prev.filter(id => id !== toolId)
+        : [...prev, toolId]
+    );
+  };
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!name.trim()) return;
+
+    const updatedAgent: Agent = {
+      ...agent,
+      name: name.trim(),
+      description: description.trim() || '',
+      color,
+      avatar,
+      systemPrompt: systemPrompt.trim() || '',
+      toolIds: selectedTools,
+    };
+
+    onSave(updatedAgent);
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+      <div className="bg-ios-card rounded-xl shadow-2xl overflow-hidden border border-ios-separator" style={{ width: '500px', maxWidth: '95vw' }}>
+        
+        {/* macOS Window Titlebar */}
+        <div className="h-12 bg-gradient-to-b from-gray-100 to-gray-200 dark:from-gray-700 dark:to-gray-800 border-b border-ios-separator flex items-center px-4 gap-2">
+          <div className="flex gap-2">
+            <button onClick={onClose} className="w-3 h-3 rounded-full bg-red-500 hover:bg-red-600 transition-colors" />
+            <div className="w-3 h-3 rounded-full bg-yellow-500" />
+            <div className="w-3 h-3 rounded-full bg-green-500" />
+          </div>
+          <div className="flex-1 text-center text-sm font-medium text-ios-text">Edit Agent</div>
+        </div>
+        
+        {/* Contact Card Form */}
+        <form onSubmit={handleSubmit} className="p-6">
+          {/* Avatar Section */}
+          <div className="flex flex-col items-center mb-6">
+            <div 
+              className="w-24 h-24 rounded-full flex items-center justify-center text-4xl mb-3 shadow-lg cursor-pointer hover:opacity-80 transition-opacity border-4 border-white text-white"
+              style={{ backgroundColor: color }}
+            >
+              {avatar}
+            </div>
+            <div className="flex gap-1">
+              {avatars.map(a => (
+                <button
+                  key={a}
+                  type="button"
+                  onClick={() => setAvatar(a)}
+                  className={cn(
+                    'w-7 h-7 rounded-lg flex items-center justify-center text-sm transition-all',
+                    avatar === a ? 'bg-ios-blue/20 ring-2 ring-ios-blue' : 'hover:bg-ios-secondary'
+                  )}
+                >
+                  {a}
+                </button>
+              ))}
+            </div>
+          </div>
+          
+          {/* Form Fields */}
+          <div className="space-y-4">
+            <div className="flex items-center gap-3">
+              <label className="w-24 text-right text-sm text-ios-text-secondary">Name</label>
+              <input 
+                type="text" 
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                placeholder="Agent Name" 
+                className="flex-1 px-3 py-2 border border-ios-separator rounded-md text-sm bg-ios-card text-ios-text focus:outline-none focus:ring-2 focus:ring-ios-blue focus:border-transparent"
+                required
+              />
+            </div>
+            
+            <div className="flex items-center gap-3">
+              <label className="w-24 text-right text-sm text-ios-text-secondary">Color</label>
+              <div className="flex gap-2">
+                {colors.map(c => (
+                  <button
+                    key={c}
+                    type="button"
+                    onClick={() => setColor(c)}
+                    className={cn(
+                      'w-7 h-7 rounded-full transition-all',
+                      color === c ? 'ring-2 ring-offset-2 ring-ios-blue' : 'hover:scale-110'
+                    )}
+                    style={{ backgroundColor: c }}
+                  />
+                ))}
+              </div>
+            </div>
+            
+            <div className="flex items-start gap-3">
+              <label className="w-24 text-right text-sm text-ios-text-secondary pt-2">Description</label>
+              <textarea 
+                rows={2} 
+                value={description}
+                onChange={(e) => setDescription(e.target.value)}
+                placeholder="Brief description of the agent..." 
+                className="flex-1 px-3 py-2 border border-ios-separator rounded-md text-sm bg-ios-card text-ios-text focus:outline-none focus:ring-2 focus:ring-ios-blue resize-none"
+              />
+            </div>
+            
+            <div className="flex items-start gap-3">
+              <label className="w-24 text-right text-sm text-ios-text-secondary pt-2">Instructions</label>
+              <textarea 
+                rows={4} 
+                value={systemPrompt}
+                onChange={(e) => setSystemPrompt(e.target.value)}
+                placeholder="System prompt / instructions for the agent..." 
+                className="flex-1 px-3 py-2 border border-ios-separator rounded-md text-sm bg-ios-card text-ios-text focus:outline-none focus:ring-2 focus:ring-ios-blue resize-none"
+              />
+            </div>
+
+            {/* Tools Field */}
+            <div className="flex items-start gap-3">
+              <label className="w-24 text-right text-sm text-ios-text-secondary pt-2">Tools</label>
+              <div className="flex-1 grid grid-cols-2 gap-2">
+                {AVAILABLE_TOOLS.map(tool => (
+                  <button
+                    key={tool.id}
+                    type="button"
+                    onClick={() => handleToggleTool(tool.id)}
+                    className={cn(
+                      'flex items-center gap-2 px-3 py-2 rounded-lg text-left text-sm transition-all',
+                      selectedTools.includes(tool.id)
+                        ? 'bg-ios-blue/10 border-2 border-ios-blue'
+                        : 'bg-ios-secondary border-2 border-transparent hover:bg-ios-secondary/80'
+                    )}
+                  >
+                    <span>{tool.icon}</span>
+                    <span className={selectedTools.includes(tool.id) ? 'text-ios-blue font-medium' : 'text-ios-text'}>
+                      {tool.label}
+                    </span>
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
+        
+          {/* Footer Buttons */}
+          <div className="flex justify-end gap-3 mt-6 pt-4 border-t border-ios-separator">
+            <button 
+              type="button"
+              onClick={onCancel}
+              className="px-4 py-2 text-sm text-ios-text-secondary hover:text-ios-text rounded-md transition-colors"
+            >
+              Cancel
+            </button>
+            <button 
+              type="submit"
+              disabled={!name.trim()}
+              className={cn(
+                'px-4 py-2 text-sm rounded-md font-medium transition-colors',
+                name.trim()
+                  ? 'bg-ios-blue text-white hover:bg-blue-600'
+                  : 'bg-ios-secondary text-ios-text-secondary cursor-not-allowed'
+              )}
+            >
+              Save
             </button>
           </div>
         </form>

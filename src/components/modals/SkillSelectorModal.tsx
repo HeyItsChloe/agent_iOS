@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Modal, ModalFooter } from './Modal';
 import { useSkillStore } from '../../stores/skillStore';
-import { useConversationStore } from '../../stores/conversationStore';
+import { useConversationStore, useActiveConversation } from '../../stores/conversationStore';
 import { Check, Plus, Search, Tag } from 'lucide-react';
 import { cn } from '../../utils/cn';
 
@@ -15,7 +15,8 @@ export function SkillSelectorModal({ onClose }: SkillSelectorModalProps) {
   const [showCreateForm, setShowCreateForm] = useState(false);
   
   const { skills, categories } = useSkillStore();
-  const { activeConversation, updateConversation } = useConversationStore();
+  const activeConversation = useActiveConversation();
+  const { updateConversation } = useConversationStore();
 
   const [selectedSkills, setSelectedSkills] = useState<string[]>(
     activeConversation?.skillIds || []

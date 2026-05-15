@@ -112,8 +112,21 @@ export function ChatView() {
   // Group messages by date
   const groupedMessages = groupMessagesByDate(messages);
 
+  // Get participant names for header
+  const participantNames = activeConversation.agentIds
+    .map(id => agents.get(id)?.name)
+    .filter(Boolean)
+    .join(', ');
+
   return (
     <div className="h-full flex flex-col bg-ios-background">
+      {/* Participants header */}
+      {participantNames && (
+        <div className="bg-ios-card border-b border-ios-separator px-4 py-2 text-center">
+          <span className="text-sm text-ios-text-secondary">{participantNames}</span>
+        </div>
+      )}
+
       {/* Connection indicator */}
       {!connected && (
         <div className="bg-yellow-500/10 text-yellow-600 text-xs text-center py-1">
