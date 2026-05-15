@@ -82,10 +82,24 @@ export function useVoiceInput(): UseVoiceInputReturn {
 
     recognition.onerror = (event) => {
       console.error('[VoiceInput] Error:', event.error, event);
-      setError(event.error === 'not-allowed' 
-        ? 'Microphone access denied' 
-        : `Speech recognition error: ${event.error}`
-      );
+      let errorMessage: string;
+      switch (event.error) {
+        case 'not-allowed':
+          errorMessage = 'Microphone access denied';
+          break;
+        case 'network':
+          errorMessage = 'Network error - speech recognition requires internet access';
+          break;
+        case 'no-speech':
+          errorMessage = 'No speech detected';
+          break;
+        case 'aborted':
+          errorMessage = 'Recording aborted';
+          break;
+        default:
+          errorMessage = `Speech recognition error: ${event.error}`;
+      }
+      setError(errorMessage);
       setIsRecording(false);
     };
 
