@@ -468,7 +468,7 @@ ipcMain.handle('tool:open-terminal-vscode', async () => {
 
   try {
     if (process.platform === 'darwin') {
-      // macOS - Open VS Code, then use Cmd+Shift+N for new window, then open folder
+      // macOS - Open VS Code with new window and folder using keyboard shortcuts
       // Note: key code 50 is backtick on US keyboard layout
       const escapedDir = workspaceDir.replace(/'/g, "'\\''");
       const script = `
@@ -486,22 +486,29 @@ tell application "System Events"
   keystroke "n" using {command down, shift down}
   delay 0.5
   
-  -- Open folder with Cmd+O
+  -- Cmd+K Cmd+O to open folder dialog in VS Code
+  keystroke "k" using command down
+  delay 0.1
   keystroke "o" using command down
+  delay 0.5
+  
+  -- In the native file dialog, use Cmd+Shift+G to go to path
+  keystroke "g" using {command down, shift down}
   delay 0.3
   
-  -- Type the path and press Enter
-  keystroke "g" using {command down, shift down}
-  delay 0.2
+  -- Type the folder path
   keystroke "${escapedDir}"
+  delay 0.1
   keystroke return
   delay 0.3
+  
+  -- Click Open button (press Enter)
   keystroke return
-  delay 0.5
+  delay 0.8
   
   -- Open terminal with Ctrl+\`
   key code 50 using control down
-  delay 0.3
+  delay 0.5
   keystroke "openhands"
   keystroke return
 end tell
