@@ -48,14 +48,14 @@ export function ChatView() {
   const handleSendMessage = async (content: string, mentionAgentId?: string) => {
     if (!activeConversation) return;
 
-    // Create user message with UTC timestamp for consistency
+    // Create user message optimistically (timestamp will be updated from server)
     const userMessage: Message = {
       id: `temp-${Date.now()}`,
       conversationId: activeConversation.id,
       content,
       sender: 'user',
       status: 'sending',
-      timestamp: new Date(new Date().toISOString()), // Normalize to UTC then parse
+      timestamp: new Date(),
       subAgentResults: [],
     };
 
@@ -100,7 +100,6 @@ export function ChatView() {
   }
 
   // Sort messages by timestamp to ensure correct chronological order
-  // (responses may arrive after multiple prompts are sent)
   const messages = [...(activeConversation.messages || [])].sort(
     (a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()
   );

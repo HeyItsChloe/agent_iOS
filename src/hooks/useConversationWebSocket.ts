@@ -151,16 +151,19 @@ export function useConversationWebSocket(
   }) => {
     if (!conversationId) return;
 
-    // For user messages, just update the status of the optimistically added message
+    // For user messages, update status AND timestamp from server
+    // Using server timestamp ensures all messages use the same clock for correct sorting
     if (data.sender === 'user') {
-      // Find the pending message and update its status to 'sent'
       const conversation = conversations.get(conversationId);
       if (conversation) {
         const pendingMessage = conversation.messages.find(
           m => m.sender === 'user' && m.status === 'sending'
         );
         if (pendingMessage) {
-          updateMessage(conversationId, pendingMessage.id, { status: 'sent' });
+          updateMessage(conversationId, pendingMessage.id, { 
+            status: 'sent',
+            timestamp: new Date(data.timestamp || Date.now()),
+          });
         }
       }
       return;
