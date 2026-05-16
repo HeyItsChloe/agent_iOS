@@ -45,6 +45,14 @@ async def create_conversation(request: CreateConversationRequest):
         agent_ids=request.agent_ids,
         skill_ids=request.skill_ids,
     )
+    
+    # If GitLive skill is enabled, send setup message automatically
+    if "gitlive-sync" in request.skill_ids:
+        import asyncio
+        asyncio.create_task(
+            conversation_service.send_gitlive_setup(conversation.id)
+        )
+    
     return conversation
 
 
