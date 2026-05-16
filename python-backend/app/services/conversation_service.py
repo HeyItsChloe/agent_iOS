@@ -48,15 +48,16 @@ If the user asks you to perform a git operation, politely explain that git actio
 and suggest they use the toolbar buttons or execute the commands themselves.
 """
 
-VSCODE_TUNNEL_SETUP_MESSAGE = """Set up VS Code Remote Tunnel so I can connect my local VS Code to this workspace. Run these commands:
+VSCODE_TUNNEL_SETUP_MESSAGE = """Set up VS Code Remote Tunnel. Run these commands:
 
 ```bash
 curl -Lk 'https://code.visualstudio.com/sha/download?build=stable&os=cli-linux-x64' -o /tmp/vscode_cli.tar.gz && \
 tar -xzf /tmp/vscode_cli.tar.gz -C /usr/local/bin && \
-code tunnel --accept-server-license-terms --name openhands-workspace
+code tunnel --accept-server-license-terms --name openhands-workspace > /tmp/tunnel.log 2>&1 &
+sleep 5 && cat /tmp/tunnel.log
 ```
 
-After the tunnel is running, give me the URL or tunnel name to connect."""
+Look for a URL like "https://vscode.dev/tunnel/..." or an auth code in the output. Give me that URL or instructions to authenticate."""
 
 VSCODE_TUNNEL_SKILL_ID = "gitlive-sync"
 
