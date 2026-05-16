@@ -64,8 +64,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
 
   // ==================== Tool Actions ====================
   
-  // Open terminal in project directory
-  openTerminal: () => ipcRenderer.invoke('tool:open-terminal'),
+  // Open terminal in project directory, optionally resuming a conversation
+  openTerminal: (conversationId) => ipcRenderer.invoke('tool:open-terminal', conversationId),
   
   // Open GitHub Desktop to show diff
   openGitHubDesktop: () => ipcRenderer.invoke('tool:open-github-desktop'),

@@ -427,10 +427,18 @@ function getWorkspaceDir() {
 /**
  * Tool: Open Terminal in project directory with OpenHands CLI.
  * Opens the native terminal application at the workspace path and runs openhands.
+ * If conversationId is provided, resumes that conversation instead of starting a new one.
  */
-ipcMain.handle('tool:open-terminal', async () => {
+ipcMain.handle('tool:open-terminal', async (event, conversationId) => {
   const workspaceDir = getWorkspaceDir();
-  console.log(`[Tool] Opening terminal with OpenHands CLI at: ${workspaceDir}`);
+  
+  // Build the openhands command - resume existing conversation if ID provided
+  const openhandsCmd = conversationId 
+    ? `openhands --resume ${conversationId}`
+    : 'openhands';
+  
+  console.log(`[Tool] Opening terminal with command: ${openhandsCmd}`);
+  console.log(`[Tool] Working directory: ${workspaceDir}`);
 
   try {
     if (process.platform === 'darwin') {
@@ -438,22 +446,22 @@ ipcMain.handle('tool:open-terminal', async () => {
       const script = `
         tell application "Terminal"
           activate
-          do script "cd '${workspaceDir.replace(/'/g, "\\'")}' && openhands"
+          do script "cd '${workspaceDir.replace(/'/g, "\\'")}' && ${openhandsCmd}"
         end tell
       `;
       execSync(`osascript -e '${script.replace(/'/g, "'\"'\"'")}'`);
     } else if (process.platform === 'win32') {
       // Windows - Open Windows Terminal or cmd and run openhands
-      spawn('cmd.exe', ['/c', 'start', 'cmd', '/k', `cd /d "${workspaceDir}" && openhands`], { shell: true });
+      spawn('cmd.exe', ['/c', 'start', 'cmd', '/k', `cd /d "${workspaceDir}" && ${openhandsCmd}`], { shell: true });
     } else {
       // Linux - Try common terminal emulators
       const terminals = ['gnome-terminal', 'konsole', 'xterm', 'x-terminal-emulator'];
       for (const term of terminals) {
         try {
           if (term === 'gnome-terminal') {
-            spawn(term, ['--working-directory', workspaceDir, '--', 'bash', '-c', 'openhands; exec bash'], { detached: true });
+            spawn(term, ['--working-directory', workspaceDir, '--', 'bash', '-c', `${openhandsCmd}; exec bash`], { detached: true });
           } else {
-            spawn(term, ['--working-directory', workspaceDir, '-e', 'openhands'], { detached: true });
+            spawn(term, ['--working-directory', workspaceDir, '-e', openhandsCmd], { detached: true });
           }
           break;
         } catch {
@@ -461,7 +469,7 @@ ipcMain.handle('tool:open-terminal', async () => {
         }
       }
     }
-    return { success: true };
+    return { success: true, conversationId };
   } catch (error) {
     console.error('[Tool] Failed to open terminal:', error);
     return { success: false, error: error.message };

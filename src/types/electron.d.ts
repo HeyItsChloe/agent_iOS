@@ -57,8 +57,8 @@ export interface ElectronAPI {
 
   // ==================== Tool Actions ====================
 
-  /** Open terminal in project directory */
-  openTerminal: () => Promise<ToolActionResult>;
+  /** Open terminal in project directory, optionally resuming a conversation */
+  openTerminal: (conversationId?: string) => Promise<ToolActionResult>;
 
   /** Open GitHub Desktop to show diff */
   openGitHubDesktop: () => Promise<ToolActionResult>;

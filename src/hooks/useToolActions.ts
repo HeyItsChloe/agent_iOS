@@ -5,7 +5,6 @@
 
 import { useCallback } from 'react';
 import { ToolActionId, TOOL_ACTIONS } from '../types/tool-actions';
-import { settingsApi } from '../api/client';
 
 interface UseToolActionsOptions {
   /** Callback to send a message to the agent */
@@ -59,7 +58,7 @@ export function useToolActions(options: UseToolActionsOptions = {}) {
 
           case 'open-terminal':
             if (isElectron && window.electronAPI?.openTerminal) {
-              await window.electronAPI.openTerminal();
+              await window.electronAPI.openTerminal(conversationId);
               return { success: true };
             }
             return { success: false, error: 'Terminal action requires Electron' };
