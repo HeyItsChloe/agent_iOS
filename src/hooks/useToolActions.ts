@@ -40,21 +40,20 @@ export function useToolActions(options: UseToolActionsOptions = {}) {
       try {
         switch (actionId) {
           case 'open-vscode':
-            // Open VS Code - for oh:cloud, agent sets up GitLive in sandbox
+            // Open code-server running in the sandbox (port 12000)
+            // This is where GitLive runs for syncing with local VS Code
+            // Does NOT open a new window - opens in current tab or iframe
             try {
-              // Get workspace path from backend settings
-              const appSettings = await settingsApi.getApp();
-              const workspacePath = appSettings.default_workspace;
-              
-              // Use vscode:// URL scheme to open in VS Code
-              const vscodeUrl = `vscode://file${workspacePath}`;
-              window.open(vscodeUrl, '_self');
-              
+              // TODO: Get the actual sandbox URL from the conversation/workspace
+              // For now, inform user that agent needs to set up GitLive first
+              if (onSendMessage) {
+                onSendMessage('Set up GitLive so I can see your changes in my local VS Code');
+              }
               return { success: true };
             } catch (error) {
               return { 
                 success: false, 
-                error: error instanceof Error ? error.message : 'Failed to open VS Code' 
+                error: error instanceof Error ? error.message : 'Failed to request GitLive setup' 
               };
             }
 
