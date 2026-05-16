@@ -11,6 +11,7 @@ from app.config import settings
 from app.routes import conversations, agents, skills, health
 from app.routes.websocket import router as websocket_router
 from app.routes.settings import router as settings_router
+from app.routes.vscode import router as vscode_router
 
 # Check SDK availability
 try:
@@ -18,6 +19,21 @@ try:
     SDK_AVAILABLE = True
 except ImportError:
     SDK_AVAILABLE = False
+
+
+async def start_vscode_server_background():
+    """Start VS Code server in background on app startup."""
+    try:
+        from app.services.vscode_service import vscode_service
+        status = await vscode_service.start_server()
+        if status.running:
+            print(f"[VS Code] Server started on port {status.port}")
+            print(f"[VS Code] GitLive installed: {status.gitlive_installed}")
+            print(f"[VS Code] Workspace: {status.workspace}")
+        else:
+            print("[VS Code] Warning: Failed to start server")
+    except Exception as e:
+        print(f"[VS Code] Warning: Could not start server: {e}")
 
 
 @asynccontextmanager
@@ -41,10 +57,22 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
         except Exception as e:
             print(f"[Backend] Warning: Failed to register built-in agents: {e}")
     
+    # Start VS Code server in background (non-blocking)
+    import asyncio
+    asyncio.create_task(start_vscode_server_background())
+    
     yield
     
     # Shutdown
     print("[Backend] Shutting down...")
+    
+    # Stop VS Code server
+    try:
+        from app.services.vscode_service import vscode_service
+        await vscode_service.stop_server()
+        print("[VS Code] Server stopped")
+    except Exception:
+        pass
 
 
 app = FastAPI(
@@ -70,6 +98,7 @@ app.include_router(agents.router, prefix="/api/agents", tags=["Agents"])
 app.include_router(skills.router, prefix="/api/skills", tags=["Skills"])
 app.include_router(settings_router, prefix="/api", tags=["Settings"])
 app.include_router(websocket_router, prefix="/ws", tags=["WebSocket"])
+app.include_router(vscode_router, prefix="/api/vscode", tags=["VS Code"])
 
 
 @app.get("/")
