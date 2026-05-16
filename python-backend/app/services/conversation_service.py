@@ -468,14 +468,22 @@ class ConversationService:
         if conversation_id not in self._websockets:
             self._websockets[conversation_id] = []
         self._websockets[conversation_id].append(websocket)
+        # DEBUG: Log all registered websockets
+        print(f"[WS DEBUG] Registered websocket for conversation: {conversation_id}")
+        print(f"[WS DEBUG] Total websockets for this conversation: {len(self._websockets[conversation_id])}")
+        print(f"[WS DEBUG] All registered conversation IDs: {list(self._websockets.keys())}")
+        for cid, ws_list in self._websockets.items():
+            print(f"[WS DEBUG]   - {cid}: {len(ws_list)} connections")
     
     def unregister_websocket(self, conversation_id: str, websocket: WebSocket):
         """Unregister a WebSocket connection."""
+        print(f"[WS DEBUG] Unregistering websocket for conversation: {conversation_id}")
         if conversation_id in self._websockets:
             try:
                 self._websockets[conversation_id].remove(websocket)
+                print(f"[WS DEBUG] Successfully removed. Remaining: {len(self._websockets[conversation_id])}")
             except ValueError:
-                pass
+                print(f"[WS DEBUG] WebSocket not found in list for conversation: {conversation_id}")
     
     async def _broadcast_event(self, conversation_id: str, event: Any):
         """Broadcast an event to all connected WebSockets for a conversation."""
@@ -489,11 +497,23 @@ class ConversationService:
         else:
             event_data = {"data": str(event)}
         
-        for ws in websockets:
+        event_type = event_data.get('type', 'unknown')
+        print(f"[WS DEBUG] ====== BROADCAST EVENT ======")
+        print(f"[WS DEBUG] Target conversation_id: {conversation_id}")
+        print(f"[WS DEBUG] Event type: {event_type}")
+        print(f"[WS DEBUG] Number of websockets for this conversation: {len(websockets)}")
+        print(f"[WS DEBUG] All registered conversations: {list(self._websockets.keys())}")
+        
+        if len(websockets) == 0:
+            print(f"[WS DEBUG] WARNING: No websockets registered for conversation {conversation_id}!")
+        
+        for idx, ws in enumerate(websockets):
             try:
+                print(f"[WS DEBUG] Sending to websocket {idx + 1}/{len(websockets)}")
                 await ws.send_json(event_data)
+                print(f"[WS DEBUG] Successfully sent to websocket {idx + 1}")
             except Exception as e:
-                print(f"[WS] Failed to broadcast event: {e}")
+                print(f"[WS DEBUG] Failed to broadcast event to websocket {idx + 1}: {e}")
     
     async def _send_error(self, websocket: WebSocket, conversation_id: str, message: str):
         """Send an error event."""

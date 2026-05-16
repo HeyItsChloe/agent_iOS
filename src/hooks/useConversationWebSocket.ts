@@ -85,8 +85,21 @@ export function useConversationWebSocket(
     }
   }, [conversationId]);
 
-  const handleEvent = useCallback((data: { type: EventType; agent_id?: string; error_message?: string; tool_name?: string; state?: string }) => {
+  const handleEvent = useCallback((data: { type: EventType; conversation_id?: string; agent_id?: string; error_message?: string; tool_name?: string; state?: string }) => {
     const eventType = data.type;
+    const eventConversationId = data.conversation_id;
+
+    // DEBUG: Log all incoming events with conversation context
+    console.log(`[WS DEBUG] ====== RECEIVED EVENT ======`);
+    console.log(`[WS DEBUG] Hook's conversationId: ${conversationId}`);
+    console.log(`[WS DEBUG] Event's conversation_id: ${eventConversationId}`);
+    console.log(`[WS DEBUG] Event type: ${eventType}`);
+    console.log(`[WS DEBUG] Full event data:`, data);
+    
+    // Check for conversation ID mismatch
+    if (eventConversationId && eventConversationId !== conversationId) {
+      console.warn(`[WS DEBUG] WARNING: Event conversation_id (${eventConversationId}) does not match hook's conversationId (${conversationId})!`);
+    }
 
     switch (eventType) {
       case 'connected':
@@ -94,20 +107,29 @@ export function useConversationWebSocket(
         break;
 
       case 'message_received':
+        console.log(`[WS DEBUG] Processing message_received for conversation: ${conversationId}`);
         handleMessageReceived(data);
         break;
 
       case 'typing_started':
+        console.log(`[WS DEBUG] Typing started - agent: ${data.agent_id}, conversation: ${eventConversationId}`);
         if (data.agent_id) {
-          setTypingAgents(prev => 
-            prev.includes(data.agent_id!) ? prev : [...prev, data.agent_id!]
-          );
+          setTypingAgents(prev => {
+            const newList = prev.includes(data.agent_id!) ? prev : [...prev, data.agent_id!];
+            console.log(`[WS DEBUG] Updated typing agents:`, newList);
+            return newList;
+          });
         }
         break;
 
       case 'typing_stopped':
+        console.log(`[WS DEBUG] Typing stopped - agent: ${data.agent_id}, conversation: ${eventConversationId}`);
         if (data.agent_id) {
-          setTypingAgents(prev => prev.filter(id => id !== data.agent_id));
+          setTypingAgents(prev => {
+            const newList = prev.filter(id => id !== data.agent_id);
+            console.log(`[WS DEBUG] Updated typing agents:`, newList);
+            return newList;
+          });
         }
         break;
 
@@ -146,26 +168,40 @@ export function useConversationWebSocket(
     timestamp?: string;
     sub_agent_results?: Array<{ agentId: string; agentName: string; icon: string; content: string }>;
   }) => {
-    if (!conversationId) return;
+    console.log(`[WS DEBUG] handleMessageReceived called`);
+    console.log(`[WS DEBUG] Hook's conversationId: ${conversationId}`);
+    console.log(`[WS DEBUG] Event's conversation_id: ${data.conversation_id}`);
+    console.log(`[WS DEBUG] Sender: ${data.sender}`);
+    console.log(`[WS DEBUG] Content preview: ${data.content?.substring(0, 100)}...`);
+    
+    if (!conversationId) {
+      console.log(`[WS DEBUG] No conversationId, returning early`);
+      return;
+    }
 
     // For user messages, update status AND timestamp from server
     // Using server timestamp ensures all messages use the same clock for correct sorting
     if (data.sender === 'user') {
+      console.log(`[WS DEBUG] Processing user message confirmation`);
       const conversation = conversations.get(conversationId);
       if (conversation) {
         const pendingMessage = conversation.messages.find(
           m => m.sender === 'user' && m.status === 'sending'
         );
         if (pendingMessage) {
+          console.log(`[WS DEBUG] Found pending message to update: ${pendingMessage.id}`);
           updateMessage(conversationId, pendingMessage.id, { 
             status: 'sent',
             timestamp: new Date(data.timestamp || Date.now()),
           });
+        } else {
+          console.log(`[WS DEBUG] No pending user message found`);
         }
       }
       return;
     }
 
+    console.log(`[WS DEBUG] Processing agent message`);
     const message: Message = {
       id: data.message_id || `msg-${Date.now()}`,
       conversationId: data.conversation_id || conversationId,
@@ -179,6 +215,8 @@ export function useConversationWebSocket(
       subAgentResults: data.sub_agent_results || [],
     };
 
+    console.log(`[WS DEBUG] Adding message to conversation: ${conversationId}`);
+    console.log(`[WS DEBUG] Message object:`, message);
     addMessage(conversationId, message);
 
     // Remove agent from typing list
