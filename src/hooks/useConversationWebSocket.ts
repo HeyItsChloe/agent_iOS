@@ -24,7 +24,7 @@ export function useConversationWebSocket(
   const [connecting, setConnecting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   
-  const { addMessage, updateMessage, conversations, setTypingAgent, clearTypingAgents } = useConversationStore();
+  const { addMessage, updateMessage, updateConversation, conversations, setTypingAgent, clearTypingAgents } = useConversationStore();
   
   // Keep conversationIdRef in sync
   useEffect(() => {
@@ -123,7 +123,7 @@ export function useConversationWebSocket(
     }
   }, [setTypingAgent, clearTypingTimeout]);
 
-  const handleEvent = useCallback((data: { type: EventType; conversation_id?: string; agent_id?: string; error_message?: string; tool_name?: string; state?: string }) => {
+  const handleEvent = useCallback((data: { type: EventType; conversation_id?: string; agent_id?: string; error_message?: string; tool_name?: string; state?: string; conversation?: any }) => {
     const eventType = data.type;
     const eventConversationId = data.conversation_id;
     const currentConversationId = conversationIdRef.current;
@@ -143,6 +143,27 @@ export function useConversationWebSocket(
     switch (eventType) {
       case 'connected':
         console.log('[WS] Received connected event');
+        // Clear any stale typing indicators when reconnecting
+        // If the agent finished while we were disconnected, typing state is stale
+        if (currentConversationId) {
+          clearTypingAgents(currentConversationId);
+          
+          // Sync messages from server state (in case messages arrived while disconnected)
+          if (data.conversation?.messages) {
+            const serverMessages = data.conversation.messages;
+            const localConversation = conversations.get(currentConversationId);
+            
+            if (localConversation && serverMessages.length > localConversation.messages.length) {
+              console.log(`[WS] Syncing ${serverMessages.length - localConversation.messages.length} new messages from server`);
+              // Update conversation with server messages
+              const parsedMessages = serverMessages.map((msg: any) => ({
+                ...msg,
+                timestamp: new Date(msg.timestamp),
+              }));
+              updateConversation(currentConversationId, { messages: parsedMessages });
+            }
+          }
+        }
         break;
 
       case 'message_received':
@@ -184,7 +205,7 @@ export function useConversationWebSocket(
       default:
         console.log('[WS] Unknown event type:', eventType, data);
     }
-  }, [setTypingAgent, setTypingWithTimeout, clearTypingTimeout]);
+  }, [setTypingAgent, setTypingWithTimeout, clearTypingTimeout, clearTypingAgents, conversations, updateConversation]);
 
   const handleMessageReceived = useCallback((data: { 
     message_id?: string; 
