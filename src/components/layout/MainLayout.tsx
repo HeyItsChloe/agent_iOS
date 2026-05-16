@@ -216,7 +216,7 @@ export function MainLayout() {
           <main className="flex-1 overflow-hidden">
             <ErrorBoundary>
               {activeConversationId ? (
-                <ChatView />
+                <ChatView key={activeConversationId} />
               ) : (
                 <EmptyState onNewChat={handleNewChat} />
               )}

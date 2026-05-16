@@ -201,7 +201,7 @@ describe('conversationStore', () => {
       expect(conversations.get('conv-1')?.typingAgents['agent-1']).toBe(true);
     });
 
-    it('can clear typing status', () => {
+    it('removes agent from typingAgents when set to false', () => {
       const { setConversations, setTypingAgent } = useConversationStore.getState();
       const conv = createTestConversation({ id: 'conv-1' });
       
@@ -210,7 +210,96 @@ describe('conversationStore', () => {
       setTypingAgent('conv-1', 'agent-1', false);
 
       const { conversations } = useConversationStore.getState();
-      expect(conversations.get('conv-1')?.typingAgents['agent-1']).toBe(false);
+      // Should delete the key, not just set to false
+      expect('agent-1' in (conversations.get('conv-1')?.typingAgents || {})).toBe(false);
+    });
+  });
+
+  describe('clearTypingAgents', () => {
+    it('clears all typing agents for a conversation', () => {
+      const { setConversations, setTypingAgent, clearTypingAgents } = useConversationStore.getState();
+      const conv = createTestConversation({ id: 'conv-1' });
+      
+      setConversations([conv]);
+      setTypingAgent('conv-1', 'agent-1', true);
+      setTypingAgent('conv-1', 'agent-2', true);
+      clearTypingAgents('conv-1');
+
+      const { conversations } = useConversationStore.getState();
+      expect(Object.keys(conversations.get('conv-1')?.typingAgents || {}).length).toBe(0);
+    });
+
+    it('does nothing for non-existent conversation', () => {
+      const { clearTypingAgents } = useConversationStore.getState();
+      
+      // Should not throw
+      clearTypingAgents('non-existent');
+    });
+  });
+
+  describe('conversation isolation', () => {
+    it('typing in conversation A does not affect conversation B', () => {
+      const { setConversations, setTypingAgent } = useConversationStore.getState();
+      const convA = createTestConversation({ id: 'conv-A' });
+      const convB = createTestConversation({ id: 'conv-B' });
+      
+      setConversations([convA, convB]);
+      setTypingAgent('conv-A', 'agent-1', true);
+
+      const { conversations } = useConversationStore.getState();
+      expect(conversations.get('conv-A')?.typingAgents['agent-1']).toBe(true);
+      expect(Object.keys(conversations.get('conv-B')?.typingAgents || {}).length).toBe(0);
+    });
+
+    it('messages in conversation A do not appear in conversation B', () => {
+      const { setConversations, addMessage } = useConversationStore.getState();
+      const convA = createTestConversation({ id: 'conv-A' });
+      const convB = createTestConversation({ id: 'conv-B' });
+      
+      setConversations([convA, convB]);
+      
+      const messageA = createTestMessage({ 
+        id: 'msg-A', 
+        conversationId: 'conv-A',
+        content: 'Message for A' 
+      });
+      addMessage('conv-A', messageA);
+
+      const { conversations } = useConversationStore.getState();
+      expect(conversations.get('conv-A')?.messages).toHaveLength(1);
+      expect(conversations.get('conv-A')?.messages[0].content).toBe('Message for A');
+      expect(conversations.get('conv-B')?.messages).toHaveLength(0);
+    });
+
+    it('simultaneous typing in both conversations works independently', () => {
+      const { setConversations, setTypingAgent } = useConversationStore.getState();
+      const convA = createTestConversation({ id: 'conv-A' });
+      const convB = createTestConversation({ id: 'conv-B' });
+      
+      setConversations([convA, convB]);
+      setTypingAgent('conv-A', 'agent-1', true);
+      setTypingAgent('conv-B', 'agent-2', true);
+
+      const { conversations } = useConversationStore.getState();
+      expect(conversations.get('conv-A')?.typingAgents['agent-1']).toBe(true);
+      expect(conversations.get('conv-A')?.typingAgents['agent-2']).toBeUndefined();
+      expect(conversations.get('conv-B')?.typingAgents['agent-2']).toBe(true);
+      expect(conversations.get('conv-B')?.typingAgents['agent-1']).toBeUndefined();
+    });
+
+    it('clearing typing in conversation A does not affect conversation B', () => {
+      const { setConversations, setTypingAgent, clearTypingAgents } = useConversationStore.getState();
+      const convA = createTestConversation({ id: 'conv-A' });
+      const convB = createTestConversation({ id: 'conv-B' });
+      
+      setConversations([convA, convB]);
+      setTypingAgent('conv-A', 'agent-1', true);
+      setTypingAgent('conv-B', 'agent-2', true);
+      clearTypingAgents('conv-A');
+
+      const { conversations } = useConversationStore.getState();
+      expect(Object.keys(conversations.get('conv-A')?.typingAgents || {}).length).toBe(0);
+      expect(conversations.get('conv-B')?.typingAgents['agent-2']).toBe(true);
     });
   });
 

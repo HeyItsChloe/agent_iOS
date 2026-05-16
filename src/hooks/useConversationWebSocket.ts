@@ -3,11 +3,12 @@ import { useConversationStore } from '../stores/conversationStore';
 import type { Message } from '../types/message';
 import type { EventType } from '../types/events';
 
+const TYPING_TIMEOUT_MS = 30000; // Auto-clear typing after 30 seconds
+
 interface UseConversationWebSocketReturn {
   connected: boolean;
   connecting: boolean;
   error: string | null;
-  typingAgents: string[];
   sendMessage: (content: string, mentionAgentId?: string) => void;
   disconnect: () => void;
 }
@@ -17,12 +18,18 @@ export function useConversationWebSocket(
 ): UseConversationWebSocketReturn {
   const wsRef = useRef<WebSocket | null>(null);
   const reconnectTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const typingTimeoutRef = useRef<Map<string, NodeJS.Timeout>>(new Map());
+  const conversationIdRef = useRef<string | null>(conversationId);
   const [connected, setConnected] = useState(false);
   const [connecting, setConnecting] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [typingAgents, setTypingAgents] = useState<string[]>([]);
   
-  const { addMessage, updateMessage, conversations } = useConversationStore();
+  const { addMessage, updateMessage, conversations, setTypingAgent, clearTypingAgents } = useConversationStore();
+  
+  // Keep conversationIdRef in sync
+  useEffect(() => {
+    conversationIdRef.current = conversationId;
+  }, [conversationId]);
 
   const connect = useCallback(() => {
     if (!conversationId) return;
@@ -85,20 +92,52 @@ export function useConversationWebSocket(
     }
   }, [conversationId]);
 
+  // Clear typing timeout for an agent
+  const clearTypingTimeout = useCallback((agentId: string) => {
+    const timeout = typingTimeoutRef.current.get(agentId);
+    if (timeout) {
+      clearTimeout(timeout);
+      typingTimeoutRef.current.delete(agentId);
+    }
+  }, []);
+
+  // Set typing with auto-clear timeout
+  const setTypingWithTimeout = useCallback((convId: string, agentId: string, isTyping: boolean) => {
+    // Clear existing timeout for this agent
+    clearTypingTimeout(agentId);
+    
+    // Update store
+    setTypingAgent(convId, agentId, isTyping);
+    
+    // Set auto-clear timeout if starting to type
+    if (isTyping) {
+      const timeout = setTimeout(() => {
+        // Only clear if this is still the active conversation
+        if (conversationIdRef.current === convId) {
+          console.log(`[WS] Auto-clearing stale typing indicator for agent: ${agentId}`);
+          setTypingAgent(convId, agentId, false);
+        }
+        typingTimeoutRef.current.delete(agentId);
+      }, TYPING_TIMEOUT_MS);
+      typingTimeoutRef.current.set(agentId, timeout);
+    }
+  }, [setTypingAgent, clearTypingTimeout]);
+
   const handleEvent = useCallback((data: { type: EventType; conversation_id?: string; agent_id?: string; error_message?: string; tool_name?: string; state?: string }) => {
     const eventType = data.type;
     const eventConversationId = data.conversation_id;
+    const currentConversationId = conversationIdRef.current;
 
     // DEBUG: Log all incoming events with conversation context
     console.log(`[WS DEBUG] ====== RECEIVED EVENT ======`);
-    console.log(`[WS DEBUG] Hook's conversationId: ${conversationId}`);
+    console.log(`[WS DEBUG] Hook's conversationId: ${currentConversationId}`);
     console.log(`[WS DEBUG] Event's conversation_id: ${eventConversationId}`);
     console.log(`[WS DEBUG] Event type: ${eventType}`);
-    console.log(`[WS DEBUG] Full event data:`, data);
     
-    // Check for conversation ID mismatch
-    if (eventConversationId && eventConversationId !== conversationId) {
-      console.warn(`[WS DEBUG] WARNING: Event conversation_id (${eventConversationId}) does not match hook's conversationId (${conversationId})!`);
+    // STRICT VALIDATION: Reject events for wrong conversations
+    if (eventConversationId && eventConversationId !== currentConversationId) {
+      console.warn(`[WS DEBUG] REJECTING event - conversation_id mismatch: event=${eventConversationId}, hook=${currentConversationId}`);
+      return;
     }
 
     switch (eventType) {
@@ -107,30 +146,22 @@ export function useConversationWebSocket(
         break;
 
       case 'message_received':
-        console.log(`[WS DEBUG] Processing message_received for conversation: ${conversationId}`);
+        if (!currentConversationId) return;
+        console.log(`[WS DEBUG] Processing message_received for conversation: ${currentConversationId}`);
         handleMessageReceived(data);
         break;
 
       case 'typing_started':
-        console.log(`[WS DEBUG] Typing started - agent: ${data.agent_id}, conversation: ${eventConversationId}`);
-        if (data.agent_id) {
-          setTypingAgents(prev => {
-            const newList = prev.includes(data.agent_id!) ? prev : [...prev, data.agent_id!];
-            console.log(`[WS DEBUG] Updated typing agents:`, newList);
-            return newList;
-          });
-        }
+        if (!currentConversationId || !data.agent_id) return;
+        console.log(`[WS DEBUG] Typing started - agent: ${data.agent_id}, conversation: ${currentConversationId}`);
+        setTypingWithTimeout(currentConversationId, data.agent_id, true);
         break;
 
       case 'typing_stopped':
-        console.log(`[WS DEBUG] Typing stopped - agent: ${data.agent_id}, conversation: ${eventConversationId}`);
-        if (data.agent_id) {
-          setTypingAgents(prev => {
-            const newList = prev.filter(id => id !== data.agent_id);
-            console.log(`[WS DEBUG] Updated typing agents:`, newList);
-            return newList;
-          });
-        }
+        if (!currentConversationId || !data.agent_id) return;
+        console.log(`[WS DEBUG] Typing stopped - agent: ${data.agent_id}, conversation: ${currentConversationId}`);
+        clearTypingTimeout(data.agent_id);
+        setTypingAgent(currentConversationId, data.agent_id, false);
         break;
 
       case 'error':
@@ -139,12 +170,10 @@ export function useConversationWebSocket(
         break;
 
       case 'action':
-        // Agent is executing an action - could show tool usage indicator
         console.log('[WS] Action:', data.tool_name);
         break;
 
       case 'observation':
-        // Agent received observation from tool
         console.log('[WS] Observation:', data.tool_name);
         break;
 
@@ -155,7 +184,7 @@ export function useConversationWebSocket(
       default:
         console.log('[WS] Unknown event type:', eventType, data);
     }
-  }, [conversationId, addMessage]);
+  }, [setTypingAgent, setTypingWithTimeout, clearTypingTimeout]);
 
   const handleMessageReceived = useCallback((data: { 
     message_id?: string; 
@@ -168,34 +197,32 @@ export function useConversationWebSocket(
     timestamp?: string;
     sub_agent_results?: Array<{ agentId: string; agentName: string; icon: string; content: string }>;
   }) => {
+    const currentConversationId = conversationIdRef.current;
+    
     console.log(`[WS DEBUG] handleMessageReceived called`);
-    console.log(`[WS DEBUG] Hook's conversationId: ${conversationId}`);
+    console.log(`[WS DEBUG] Hook's conversationId: ${currentConversationId}`);
     console.log(`[WS DEBUG] Event's conversation_id: ${data.conversation_id}`);
     console.log(`[WS DEBUG] Sender: ${data.sender}`);
-    console.log(`[WS DEBUG] Content preview: ${data.content?.substring(0, 100)}...`);
     
-    if (!conversationId) {
+    if (!currentConversationId) {
       console.log(`[WS DEBUG] No conversationId, returning early`);
       return;
     }
 
     // For user messages, update status AND timestamp from server
-    // Using server timestamp ensures all messages use the same clock for correct sorting
     if (data.sender === 'user') {
       console.log(`[WS DEBUG] Processing user message confirmation`);
-      const conversation = conversations.get(conversationId);
+      const conversation = conversations.get(currentConversationId);
       if (conversation) {
         const pendingMessage = conversation.messages.find(
           m => m.sender === 'user' && m.status === 'sending'
         );
         if (pendingMessage) {
           console.log(`[WS DEBUG] Found pending message to update: ${pendingMessage.id}`);
-          updateMessage(conversationId, pendingMessage.id, { 
+          updateMessage(currentConversationId, pendingMessage.id, { 
             status: 'sent',
             timestamp: new Date(data.timestamp || Date.now()),
           });
-        } else {
-          console.log(`[WS DEBUG] No pending user message found`);
         }
       }
       return;
@@ -204,7 +231,7 @@ export function useConversationWebSocket(
     console.log(`[WS DEBUG] Processing agent message`);
     const message: Message = {
       id: data.message_id || `msg-${Date.now()}`,
-      conversationId: data.conversation_id || conversationId,
+      conversationId: data.conversation_id || currentConversationId,
       content: data.content || '',
       sender: 'agent',
       agentId: data.agent_id,
@@ -215,15 +242,15 @@ export function useConversationWebSocket(
       subAgentResults: data.sub_agent_results || [],
     };
 
-    console.log(`[WS DEBUG] Adding message to conversation: ${conversationId}`);
-    console.log(`[WS DEBUG] Message object:`, message);
-    addMessage(conversationId, message);
+    console.log(`[WS DEBUG] Adding message to conversation: ${currentConversationId}`);
+    addMessage(currentConversationId, message);
 
-    // Remove agent from typing list
+    // Clear typing indicator and timeout for this agent
     if (data.agent_id) {
-      setTypingAgents(prev => prev.filter(id => id !== data.agent_id));
+      clearTypingTimeout(data.agent_id);
+      setTypingAgent(currentConversationId, data.agent_id, false);
     }
-  }, [conversationId, addMessage, updateMessage, conversations]);
+  }, [addMessage, updateMessage, conversations, setTypingAgent, clearTypingTimeout]);
 
   const sendMessage = useCallback((content: string, mentionAgentId?: string) => {
     if (!wsRef.current || wsRef.current.readyState !== WebSocket.OPEN) {
@@ -241,17 +268,29 @@ export function useConversationWebSocket(
   const disconnect = useCallback(() => {
     if (reconnectTimeoutRef.current) {
       clearTimeout(reconnectTimeoutRef.current);
+      reconnectTimeoutRef.current = null;
     }
+    
+    // Clear all typing timeouts
+    typingTimeoutRef.current.forEach((timeout) => clearTimeout(timeout));
+    typingTimeoutRef.current.clear();
+    
     if (wsRef.current) {
       wsRef.current.close(1000, 'User disconnected');
       wsRef.current = null;
     }
     setConnected(false);
-    setTypingAgents([]);
   }, []);
 
   // Connect when conversation changes
   useEffect(() => {
+    // Store previous conversation ID for cleanup
+    const previousConversationId = conversationIdRef.current;
+    
+    // Clear all typing timeouts from previous conversation
+    typingTimeoutRef.current.forEach((timeout) => clearTimeout(timeout));
+    typingTimeoutRef.current.clear();
+    
     if (!conversationId) {
       // No conversation, ensure disconnected
       if (wsRef.current) {
@@ -259,7 +298,6 @@ export function useConversationWebSocket(
         wsRef.current = null;
       }
       setConnected(false);
-      setTypingAgents([]);
       return;
     }
 
@@ -283,6 +321,7 @@ export function useConversationWebSocket(
     const host = window.location.host;
     const wsUrl = `${protocol}//${host}/ws/conversations/${conversationId}/stream`;
 
+    console.log(`[WS] Creating new WebSocket for conversation: ${conversationId}`);
     const ws = new WebSocket(wsUrl);
     wsRef.current = ws;
 
@@ -302,7 +341,6 @@ export function useConversationWebSocket(
       if (wsRef.current === ws && event.code !== 1000) {
         reconnectTimeoutRef.current = setTimeout(() => {
           console.log('[WS] Attempting reconnect...');
-          // Trigger reconnect by calling connect
           connect();
         }, 3000);
       }
@@ -324,6 +362,12 @@ export function useConversationWebSocket(
 
     return () => {
       // Cleanup on unmount or conversation change
+      console.log(`[WS] Cleanup for conversation: ${conversationId}`);
+      
+      // Clear all typing timeouts
+      typingTimeoutRef.current.forEach((timeout) => clearTimeout(timeout));
+      typingTimeoutRef.current.clear();
+      
       if (reconnectTimeoutRef.current) {
         clearTimeout(reconnectTimeoutRef.current);
         reconnectTimeoutRef.current = null;
@@ -352,7 +396,6 @@ export function useConversationWebSocket(
     connected,
     connecting,
     error,
-    typingAgents,
     sendMessage,
     disconnect,
   };

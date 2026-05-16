@@ -37,6 +37,7 @@ interface ConversationState {
   updateMessage: (conversationId: string, messageId: string, updates: Partial<Message>) => void;
   
   setTypingAgent: (conversationId: string, agentId: string, isTyping: boolean) => void;
+  clearTypingAgents: (conversationId: string) => void;
   
   setLoading: (isLoading: boolean) => void;
   setCreating: (isCreating: boolean) => void;
@@ -153,12 +154,27 @@ export const useConversationStore = create<ConversationState>((set, get) => ({
     const conversations = new Map(get().conversations);
     const conversation = conversations.get(conversationId);
     if (conversation) {
+      const newTypingAgents = { ...conversation.typingAgents };
+      if (isTyping) {
+        newTypingAgents[agentId] = true;
+      } else {
+        delete newTypingAgents[agentId];
+      }
       conversations.set(conversationId, {
         ...conversation,
-        typingAgents: {
-          ...conversation.typingAgents,
-          [agentId]: isTyping,
-        },
+        typingAgents: newTypingAgents,
+      });
+      set({ conversations });
+    }
+  },
+  
+  clearTypingAgents: (conversationId) => {
+    const conversations = new Map(get().conversations);
+    const conversation = conversations.get(conversationId);
+    if (conversation && Object.keys(conversation.typingAgents).length > 0) {
+      conversations.set(conversationId, {
+        ...conversation,
+        typingAgents: {},
       });
       set({ conversations });
     }

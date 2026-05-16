@@ -377,7 +377,12 @@ class ConversationService:
             status=MessageStatus.SENT,
         )
         conversation.messages.append(user_message)
+        conversation.updated_at = datetime.utcnow()
         print(f"[ConvService] User message created: {user_message.id}")
+        
+        # Persist user message immediately to ensure it's saved
+        self._persist_conversation(conversation)
+        print(f"[ConvService] User message persisted")
         
         # Send user message confirmation
         print(f"[ConvService] Broadcasting user message event...")
@@ -422,7 +427,13 @@ class ConversationService:
         
         if agent_response:
             conversation.messages.append(agent_response)
+            conversation.updated_at = datetime.utcnow()
             print(f"[ConvService] Agent response appended to conversation")
+            
+            # CRITICAL: Persist BEFORE broadcasting to ensure message is saved
+            # even if WebSocket is disconnected
+            self._persist_conversation(conversation)
+            print(f"[ConvService] Conversation persisted (message saved to disk)")
             
             # Stop typing indicator
             print(f"[ConvService] Stopping typing indicators...")
@@ -438,7 +449,7 @@ class ConversationService:
                     ),
                 )
             
-            # Send agent response
+            # Send agent response (broadcast may fail if WebSocket closed, but message is already saved)
             print(f"[ConvService] Broadcasting agent response event...")
             await self._broadcast_event(
                 conversation_id,
@@ -456,11 +467,10 @@ class ConversationService:
             print(f"[ConvService] Agent response broadcast complete")
         else:
             print(f"[ConvService] WARNING: No agent response generated!")
+            # Still persist user message
+            conversation.updated_at = datetime.utcnow()
+            self._persist_conversation(conversation)
         
-        conversation.updated_at = datetime.utcnow()
-        
-        # Persist conversation after messages are added
-        self._persist_conversation(conversation)
         print(f"[ConvService] ========== handle_websocket_message END ==========")
     
     def register_websocket(self, conversation_id: str, websocket: WebSocket):
@@ -481,12 +491,21 @@ class ConversationService:
         if conversation_id in self._websockets:
             try:
                 self._websockets[conversation_id].remove(websocket)
-                print(f"[WS DEBUG] Successfully removed. Remaining: {len(self._websockets[conversation_id])}")
+                remaining = len(self._websockets[conversation_id])
+                print(f"[WS DEBUG] Successfully removed. Remaining: {remaining}")
+                
+                # Delete empty entries to prevent memory leaks
+                if remaining == 0:
+                    del self._websockets[conversation_id]
+                    print(f"[WS DEBUG] Deleted empty websocket list for conversation: {conversation_id}")
             except ValueError:
                 print(f"[WS DEBUG] WebSocket not found in list for conversation: {conversation_id}")
     
     async def _broadcast_event(self, conversation_id: str, event: Any):
-        """Broadcast an event to all connected WebSockets for a conversation."""
+        """Broadcast an event to all connected WebSockets for a conversation.
+        
+        Filters out dead/disconnected WebSockets and removes them from the list.
+        """
         websockets = self._websockets.get(conversation_id, [])
         
         # Convert to dict if needed
@@ -502,18 +521,42 @@ class ConversationService:
         print(f"[WS DEBUG] Target conversation_id: {conversation_id}")
         print(f"[WS DEBUG] Event type: {event_type}")
         print(f"[WS DEBUG] Number of websockets for this conversation: {len(websockets)}")
-        print(f"[WS DEBUG] All registered conversations: {list(self._websockets.keys())}")
         
         if len(websockets) == 0:
             print(f"[WS DEBUG] WARNING: No websockets registered for conversation {conversation_id}!")
+            return
+        
+        # Track dead websockets for removal
+        dead_websockets = []
         
         for idx, ws in enumerate(websockets):
             try:
+                # Check if WebSocket is still connected
+                if ws.client_state.name != "CONNECTED":
+                    print(f"[WS DEBUG] WebSocket {idx + 1} is not connected (state: {ws.client_state.name}), marking for removal")
+                    dead_websockets.append(ws)
+                    continue
+                    
                 print(f"[WS DEBUG] Sending to websocket {idx + 1}/{len(websockets)}")
                 await ws.send_json(event_data)
                 print(f"[WS DEBUG] Successfully sent to websocket {idx + 1}")
             except Exception as e:
                 print(f"[WS DEBUG] Failed to broadcast event to websocket {idx + 1}: {e}")
+                dead_websockets.append(ws)
+        
+        # Remove dead websockets
+        if dead_websockets and conversation_id in self._websockets:
+            for dead_ws in dead_websockets:
+                try:
+                    self._websockets[conversation_id].remove(dead_ws)
+                    print(f"[WS DEBUG] Removed dead websocket from conversation {conversation_id}")
+                except ValueError:
+                    pass
+            
+            # Delete empty entries
+            if len(self._websockets[conversation_id]) == 0:
+                del self._websockets[conversation_id]
+                print(f"[WS DEBUG] Deleted empty websocket list for conversation: {conversation_id}")
     
     async def _send_error(self, websocket: WebSocket, conversation_id: str, message: str):
         """Send an error event."""

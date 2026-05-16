@@ -4,7 +4,7 @@ import { MessageBubble } from './MessageBubble';
 import { ChatInput } from './ChatInput';
 import { GitToolbar } from './GitToolbar';
 import { TypingIndicator, MultiAgentTyping } from './TypingIndicator';
-import { useConversationStore, useActiveConversation } from '../../stores/conversationStore';
+import { useConversationStore, useActiveConversation, useTypingAgents } from '../../stores/conversationStore';
 import { useAgentStore } from '../../stores/agentStore';
 import { useConversationWebSocket } from '../../hooks/useConversationWebSocket';
 import { conversationsApi } from '../../api/client';
@@ -28,10 +28,12 @@ export function ChatView() {
   
   const { agents } = useAgentStore();
   
+  // Get typing agents from store (per-conversation state)
+  const typingAgentIds = useTypingAgents(activeConversation?.id || '');
+  
   // WebSocket connection for real-time updates
   const { 
     connected, 
-    typingAgents, 
     sendMessage: wsSendMessage 
   } = useConversationWebSocket(activeConversation?.id || null);
 
@@ -155,7 +157,7 @@ export function ChatView() {
     (a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()
   );
   const agentsArray = Array.from(agents.values());
-  const typingAgentsList = typingAgents.map(id => {
+  const typingAgentsList = typingAgentIds.map(id => {
     const agent = agentsArray.find(a => a.id === id);
     return agent ? { name: agent.name, color: agent.color } : null;
   }).filter(Boolean) as Array<{ name: string; color: string }>;

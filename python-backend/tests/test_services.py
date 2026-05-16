@@ -3,9 +3,29 @@
 import pytest
 from datetime import datetime
 from uuid import uuid4
+from unittest.mock import MagicMock, AsyncMock
 
 from app.models.conversation import ConversationType
 from app.models.message import MessageSender, MessageStatus
+
+
+class MockWebSocket:
+    """Mock WebSocket for testing."""
+    
+    def __init__(self, connected=True):
+        self.client_state = MagicMock()
+        self.client_state.name = "CONNECTED" if connected else "DISCONNECTED"
+        self.sent_messages = []
+        self._closed = False
+    
+    async def send_json(self, data):
+        if self._closed:
+            raise Exception("WebSocket is closed")
+        self.sent_messages.append(data)
+    
+    def close(self):
+        self._closed = True
+        self.client_state.name = "DISCONNECTED"
 
 
 class TestConversationService:
@@ -14,41 +34,43 @@ class TestConversationService:
     def test_create_conversation(self, conversation_service):
         """Test creating a new conversation."""
         conv = conversation_service.create_conversation(
-            conv_type="single",
+            conversation_type="single",
             agent_ids=["agent-1"],
             skill_ids=[],
             title="Test Chat",
         )
         
-        assert conv["id"] is not None
-        assert conv["type"] == "single"
-        assert conv["agent_ids"] == ["agent-1"]
-        assert conv["title"] == "Test Chat"
+        assert conv.id is not None
+        assert conv.type == "single"
+        assert conv.agent_ids == ["agent-1"]
+        assert conv.title == "Test Chat"
 
     def test_create_group_conversation(self, conversation_service):
         """Test creating a group conversation."""
         conv = conversation_service.create_conversation(
-            conv_type="group",
+            conversation_type="group",
             agent_ids=["agent-1", "agent-2", "agent-3"],
             skill_ids=["skill-1"],
+            title=None,
         )
         
-        assert conv["type"] == "group"
-        assert len(conv["agent_ids"]) == 3
-        assert len(conv["skill_ids"]) == 1
+        assert conv.type == "group"
+        assert len(conv.agent_ids) == 3
+        assert len(conv.skill_ids) == 1
 
     def test_get_conversation(self, conversation_service):
         """Test retrieving a conversation by ID."""
         created = conversation_service.create_conversation(
-            conv_type="single",
+            conversation_type="single",
             agent_ids=["agent-1"],
             skill_ids=[],
+            title=None,
         )
         
-        retrieved = conversation_service.get_conversation(created["id"])
+        retrieved = conversation_service.get_conversation(created.id)
         
         assert retrieved is not None
-        assert retrieved["id"] == created["id"]
+        assert retrieved.id == created.id
 
     def test_get_nonexistent_conversation(self, conversation_service):
         """Test retrieving a non-existent conversation."""
@@ -59,14 +81,16 @@ class TestConversationService:
         """Test listing all conversations."""
         # Create multiple conversations
         conversation_service.create_conversation(
-            conv_type="single",
+            conversation_type="single",
             agent_ids=["agent-1"],
             skill_ids=[],
+            title=None,
         )
         conversation_service.create_conversation(
-            conv_type="group",
+            conversation_type="group",
             agent_ids=["agent-1", "agent-2"],
             skill_ids=[],
+            title=None,
         )
         
         conversations = conversation_service.list_conversations()
@@ -76,20 +100,228 @@ class TestConversationService:
     def test_delete_conversation(self, conversation_service):
         """Test deleting a conversation."""
         conv = conversation_service.create_conversation(
-            conv_type="single",
+            conversation_type="single",
             agent_ids=["agent-1"],
             skill_ids=[],
+            title=None,
         )
         
-        result = conversation_service.delete_conversation(conv["id"])
+        result = conversation_service.delete_conversation(conv.id)
         
         assert result is True
-        assert conversation_service.get_conversation(conv["id"]) is None
+        assert conversation_service.get_conversation(conv.id) is None
 
     def test_delete_nonexistent_conversation(self, conversation_service):
         """Test deleting a non-existent conversation."""
         result = conversation_service.delete_conversation("nonexistent-id")
         assert result is False
+
+
+class TestWebSocketManagement:
+    """Tests for WebSocket registration and broadcasting."""
+
+    def test_register_websocket(self, conversation_service):
+        """Test registering a WebSocket connection."""
+        conv = conversation_service.create_conversation(
+            conversation_type="single",
+            agent_ids=["agent-1"],
+            skill_ids=[],
+            title=None,
+        )
+        
+        ws = MockWebSocket()
+        conversation_service.register_websocket(conv.id, ws)
+        
+        assert conv.id in conversation_service._websockets
+        assert ws in conversation_service._websockets[conv.id]
+
+    def test_unregister_websocket(self, conversation_service):
+        """Test unregistering a WebSocket connection."""
+        conv = conversation_service.create_conversation(
+            conversation_type="single",
+            agent_ids=["agent-1"],
+            skill_ids=[],
+            title=None,
+        )
+        
+        ws = MockWebSocket()
+        conversation_service.register_websocket(conv.id, ws)
+        conversation_service.unregister_websocket(conv.id, ws)
+        
+        # Empty list should be deleted
+        assert conv.id not in conversation_service._websockets
+
+    def test_unregister_one_of_multiple_websockets(self, conversation_service):
+        """Test unregistering one WebSocket when multiple are registered."""
+        conv = conversation_service.create_conversation(
+            conversation_type="single",
+            agent_ids=["agent-1"],
+            skill_ids=[],
+            title=None,
+        )
+        
+        ws1 = MockWebSocket()
+        ws2 = MockWebSocket()
+        conversation_service.register_websocket(conv.id, ws1)
+        conversation_service.register_websocket(conv.id, ws2)
+        conversation_service.unregister_websocket(conv.id, ws1)
+        
+        assert conv.id in conversation_service._websockets
+        assert len(conversation_service._websockets[conv.id]) == 1
+        assert ws2 in conversation_service._websockets[conv.id]
+
+    @pytest.mark.asyncio
+    async def test_broadcast_to_connected_websocket(self, conversation_service):
+        """Test broadcasting to a connected WebSocket."""
+        conv = conversation_service.create_conversation(
+            conversation_type="single",
+            agent_ids=["agent-1"],
+            skill_ids=[],
+            title=None,
+        )
+        
+        ws = MockWebSocket(connected=True)
+        conversation_service.register_websocket(conv.id, ws)
+        
+        await conversation_service._broadcast_event(conv.id, {"type": "test", "data": "hello"})
+        
+        assert len(ws.sent_messages) == 1
+        assert ws.sent_messages[0]["type"] == "test"
+
+    @pytest.mark.asyncio
+    async def test_broadcast_removes_dead_websockets(self, conversation_service):
+        """Test that broadcasting removes disconnected WebSockets."""
+        conv = conversation_service.create_conversation(
+            conversation_type="single",
+            agent_ids=["agent-1"],
+            skill_ids=[],
+            title=None,
+        )
+        
+        ws_connected = MockWebSocket(connected=True)
+        ws_disconnected = MockWebSocket(connected=False)
+        conversation_service.register_websocket(conv.id, ws_connected)
+        conversation_service.register_websocket(conv.id, ws_disconnected)
+        
+        await conversation_service._broadcast_event(conv.id, {"type": "test"})
+        
+        # Disconnected WebSocket should be removed
+        assert len(conversation_service._websockets[conv.id]) == 1
+        assert ws_connected in conversation_service._websockets[conv.id]
+        
+        # Only connected WebSocket should receive the message
+        assert len(ws_connected.sent_messages) == 1
+        assert len(ws_disconnected.sent_messages) == 0
+
+    @pytest.mark.asyncio
+    async def test_broadcast_to_wrong_conversation_does_nothing(self, conversation_service):
+        """Test that broadcasting to wrong conversation ID has no effect."""
+        conv = conversation_service.create_conversation(
+            conversation_type="single",
+            agent_ids=["agent-1"],
+            skill_ids=[],
+            title=None,
+        )
+        
+        ws = MockWebSocket()
+        conversation_service.register_websocket(conv.id, ws)
+        
+        # Broadcast to different conversation
+        await conversation_service._broadcast_event("different-conv-id", {"type": "test"})
+        
+        # WebSocket should not receive the message
+        assert len(ws.sent_messages) == 0
+
+
+class TestConversationIsolation:
+    """Tests for conversation isolation - ensuring events don't cross-contaminate."""
+
+    def test_websocket_registration_is_per_conversation(self, conversation_service):
+        """Test that WebSocket registration is isolated per conversation."""
+        conv_a = conversation_service.create_conversation(
+            conversation_type="single",
+            agent_ids=["agent-1"],
+            skill_ids=[],
+            title="Conversation A",
+        )
+        conv_b = conversation_service.create_conversation(
+            conversation_type="single",
+            agent_ids=["agent-1"],
+            skill_ids=[],
+            title="Conversation B",
+        )
+        
+        ws_a = MockWebSocket()
+        ws_b = MockWebSocket()
+        conversation_service.register_websocket(conv_a.id, ws_a)
+        conversation_service.register_websocket(conv_b.id, ws_b)
+        
+        assert ws_a in conversation_service._websockets[conv_a.id]
+        assert ws_a not in conversation_service._websockets.get(conv_b.id, [])
+        assert ws_b in conversation_service._websockets[conv_b.id]
+        assert ws_b not in conversation_service._websockets.get(conv_a.id, [])
+
+    @pytest.mark.asyncio
+    async def test_broadcast_only_goes_to_correct_conversation(self, conversation_service):
+        """Test that broadcasts only go to the correct conversation's WebSockets."""
+        conv_a = conversation_service.create_conversation(
+            conversation_type="single",
+            agent_ids=["agent-1"],
+            skill_ids=[],
+            title="Conversation A",
+        )
+        conv_b = conversation_service.create_conversation(
+            conversation_type="single",
+            agent_ids=["agent-1"],
+            skill_ids=[],
+            title="Conversation B",
+        )
+        
+        ws_a = MockWebSocket()
+        ws_b = MockWebSocket()
+        conversation_service.register_websocket(conv_a.id, ws_a)
+        conversation_service.register_websocket(conv_b.id, ws_b)
+        
+        # Broadcast to conversation A
+        await conversation_service._broadcast_event(conv_a.id, {"type": "message", "content": "for A"})
+        
+        # Only ws_a should receive the message
+        assert len(ws_a.sent_messages) == 1
+        assert ws_a.sent_messages[0]["content"] == "for A"
+        assert len(ws_b.sent_messages) == 0
+
+    def test_messages_are_isolated_per_conversation(self, conversation_service):
+        """Test that messages added to one conversation don't appear in another."""
+        conv_a = conversation_service.create_conversation(
+            conversation_type="single",
+            agent_ids=["agent-1"],
+            skill_ids=[],
+            title="Conversation A",
+        )
+        conv_b = conversation_service.create_conversation(
+            conversation_type="single",
+            agent_ids=["agent-1"],
+            skill_ids=[],
+            title="Conversation B",
+        )
+        
+        # Get the internal conversation objects
+        internal_conv_a = conversation_service._conversations[conv_a.id]
+        
+        # Add a message to conversation A
+        from app.models.message import Message
+        message = Message(
+            id=str(uuid4()),
+            conversation_id=conv_a.id,
+            content="Message for A only",
+            sender=MessageSender.USER,
+            status=MessageStatus.SENT,
+        )
+        internal_conv_a.messages.append(message)
+        
+        # Verify isolation
+        assert len(conversation_service._conversations[conv_a.id].messages) == 1
+        assert len(conversation_service._conversations[conv_b.id].messages) == 0
 
 
 class TestAgentManager:
