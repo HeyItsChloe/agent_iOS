@@ -37,17 +37,19 @@ class VSCodeService:
     
     def __init__(self):
         self.port = int(os.environ.get("VSCODE_SERVER_PORT", 12000))
-        self.workspace = os.environ.get("WORKSPACE_DIR", self._get_default_workspace())
+        self.workspace = os.environ.get("WORKSPACE_DIR") or self._get_default_workspace()
         self.pid_file = Path("/tmp/code-server.pid")
         self.log_file = Path("/tmp/code-server.log")
         self._tunnel_process: Optional[subprocess.Popen] = None
         self._is_local_mode: Optional[bool] = None
     
     def _get_default_workspace(self) -> str:
-        """Get the default workspace path."""
-        # Try to get from settings
+        """Get the default workspace path as a string."""
         try:
-            return settings.default_workspace or os.getcwd()
+            workspace = settings.default_workspace
+            if workspace:
+                return str(workspace)
+            return os.getcwd()
         except Exception:
             return os.getcwd()
     
