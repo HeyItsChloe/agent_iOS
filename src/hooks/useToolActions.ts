@@ -40,16 +40,27 @@ export function useToolActions(options: UseToolActionsOptions = {}) {
       try {
         switch (actionId) {
           case 'open-vscode':
-            // Open VS Code using vscode:// URL scheme (works from browser)
+            // Open VS Code via backend VS Code service (code-server + GitLive)
             try {
-              // Get workspace path from backend settings
-              const appSettings = await settingsApi.getApp();
-              const workspacePath = appSettings.default_workspace;
+              const response = await fetch('/api/vscode/connect');
+              if (!response.ok) {
+                throw new Error('Failed to get VS Code connection info');
+              }
               
-              // Use vscode:// URL scheme to open in VS Code
-              // This works on macOS, Windows, and Linux when VS Code is installed
-              const vscodeUrl = `vscode://file${workspacePath}`;
-              window.open(vscodeUrl, '_self');
+              const connectionInfo = await response.json();
+              
+              // Handle different connection methods
+              switch (connectionInfo.method) {
+                case 'vscode-uri':
+                  // Opens local VS Code directly via vscode:// protocol
+                  window.location.href = connectionInfo.url;
+                  break;
+                case 'tunnel':
+                case 'browser':
+                  // Opens code-server in new tab (with GitLive pre-installed)
+                  window.open(connectionInfo.url, '_blank');
+                  break;
+              }
               
               return { success: true };
             } catch (error) {
