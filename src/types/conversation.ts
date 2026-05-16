@@ -21,6 +21,8 @@ export interface Conversation {
   isArchived: boolean;
   isMuted: boolean;
   isStopped: boolean;
+  /** Cloud conversation ID (when using OpenHands Cloud) */
+  cloudConversationId?: string | null;
 }
 
 /** Request to create a new conversation */
@@ -59,6 +61,7 @@ export interface ConversationFromAPI {
   is_archived: boolean;
   is_muted: boolean;
   is_stopped: boolean;
+  cloud_conversation_id?: string | null;
 }
 
 /** Conversation summary from API */
@@ -91,6 +94,7 @@ export function parseConversation(api: ConversationFromAPI): Conversation {
     isArchived: api.is_archived,
     isMuted: api.is_muted ?? false,
     isStopped: api.is_stopped ?? false,
+    cloudConversationId: api.cloud_conversation_id,
   };
 }
 

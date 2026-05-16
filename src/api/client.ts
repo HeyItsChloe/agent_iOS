@@ -45,7 +45,23 @@ async function request<T>(
 export const conversationsApi = {
   list: () => request<any[]>('/conversations'),
   
-  get: (id: string) => request<any>(`/conversations/${id}`),
+  get: (id: string, sync: boolean = false) => 
+    request<any>(`/conversations/${id}${sync ? '?sync=true' : ''}`),
+  
+  /** Sync messages from OpenHands Cloud */
+  sync: (id: string) => request<{
+    status: string;
+    conversation_id: string;
+    cloud_conversation_id: string | null;
+    message_count: number;
+  }>(`/conversations/${id}/sync`, { method: 'POST' }),
+  
+  /** Get terminal connection info */
+  getTerminalInfo: (id: string) => request<{
+    conversation_id: string;
+    cloud_conversation_id: string | null;
+    has_cloud_session: boolean;
+  }>(`/conversations/${id}/terminal-info`),
   
   create: (data: {
     type: string;

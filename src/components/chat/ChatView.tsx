@@ -1,4 +1,5 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, useCallback } from 'react';
+import { RefreshCw } from 'lucide-react';
 import { MessageBubble } from './MessageBubble';
 import { ChatInput } from './ChatInput';
 import { GitToolbar } from './GitToolbar';
@@ -6,6 +7,7 @@ import { TypingIndicator, MultiAgentTyping } from './TypingIndicator';
 import { useConversationStore, useActiveConversation } from '../../stores/conversationStore';
 import { useAgentStore } from '../../stores/agentStore';
 import { useConversationWebSocket } from '../../hooks/useConversationWebSocket';
+import { conversationsApi } from '../../api/client';
 import type { Message } from '../../types/message';
 import { formatDate } from '../../utils/formatters';
 
@@ -13,12 +15,15 @@ export function ChatView() {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const messagesContainerRef = useRef<HTMLDivElement>(null);
   const [autoScroll, setAutoScroll] = useState(true);
+  const [isSyncing, setIsSyncing] = useState(false);
+  const [lastSyncTime, setLastSyncTime] = useState<Date | null>(null);
   
   // Use the selector hook for proper reactivity
   const activeConversation = useActiveConversation();
   const { 
     addMessage,
-    updateMessage 
+    updateMessage,
+    updateConversation,
   } = useConversationStore();
   
   const { agents } = useAgentStore();
@@ -29,6 +34,51 @@ export function ChatView() {
     typingAgents, 
     sendMessage: wsSendMessage 
   } = useConversationWebSocket(activeConversation?.id || null);
+
+  // Sync messages from cloud
+  const syncFromCloud = useCallback(async () => {
+    if (!activeConversation?.id || isSyncing) return;
+    
+    setIsSyncing(true);
+    try {
+      // Fetch conversation with sync flag
+      const synced = await conversationsApi.get(activeConversation.id, true);
+      
+      // Update the conversation in store with synced messages
+      if (synced && synced.messages) {
+        updateConversation(activeConversation.id, {
+          messages: synced.messages.map((msg: any) => ({
+            ...msg,
+            timestamp: new Date(msg.timestamp),
+          })),
+        });
+      }
+      
+      setLastSyncTime(new Date());
+    } catch (error) {
+      console.error('Failed to sync from cloud:', error);
+    } finally {
+      setIsSyncing(false);
+    }
+  }, [activeConversation?.id, isSyncing, updateConversation]);
+
+  // Auto-sync every 30 seconds if conversation has cloud session
+  useEffect(() => {
+    if (!activeConversation?.cloudConversationId) return;
+    
+    const interval = setInterval(() => {
+      syncFromCloud();
+    }, 30000); // 30 seconds
+    
+    return () => clearInterval(interval);
+  }, [activeConversation?.cloudConversationId, syncFromCloud]);
+
+  // Sync when conversation changes (if it has cloud session)
+  useEffect(() => {
+    if (activeConversation?.cloudConversationId) {
+      syncFromCloud();
+    }
+  }, [activeConversation?.id]); // Only on conversation ID change
 
   // Scroll to bottom when new messages arrive
   useEffect(() => {
@@ -132,6 +182,23 @@ export function ChatView() {
       {!connected && (
         <div className="bg-yellow-500/10 text-yellow-600 text-xs text-center py-1">
           Connecting to server...
+        </div>
+      )}
+
+      {/* Cloud sync indicator */}
+      {activeConversation.cloudConversationId && (
+        <div className="flex items-center justify-center gap-2 py-1 bg-ios-secondary/50">
+          <span className="text-xs text-ios-text-secondary">
+            ☁️ Cloud synced
+          </span>
+          <button
+            onClick={syncFromCloud}
+            disabled={isSyncing}
+            className="text-ios-blue text-xs flex items-center gap-1 hover:underline disabled:opacity-50"
+          >
+            <RefreshCw size={12} className={isSyncing ? 'animate-spin' : ''} />
+            {isSyncing ? 'Syncing...' : 'Refresh'}
+          </button>
         </div>
       )}
 

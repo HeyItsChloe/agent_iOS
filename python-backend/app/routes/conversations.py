@@ -57,12 +57,37 @@ async def create_conversation(request: CreateConversationRequest):
 
 
 @router.get("/{conversation_id}")
-async def get_conversation(conversation_id: str):
-    """Get a specific conversation."""
-    conversation = conversation_service.get_conversation(conversation_id)
+async def get_conversation(conversation_id: str, sync: bool = False):
+    """Get a specific conversation.
+    
+    Args:
+        conversation_id: The conversation ID
+        sync: If True, sync messages from cloud before returning
+    """
+    conversation = conversation_service.get_conversation(conversation_id, sync_from_cloud=sync)
     if not conversation:
         raise HTTPException(status_code=404, detail="Conversation not found")
     return conversation
+
+
+@router.post("/{conversation_id}/sync")
+async def sync_conversation(conversation_id: str):
+    """Sync messages from OpenHands Cloud for this conversation.
+    
+    Fetches the latest messages from the cloud and merges them
+    with the local conversation. This allows messages sent via
+    the CLI or web app to appear in this app.
+    """
+    conversation = conversation_service.get_conversation(conversation_id, sync_from_cloud=True)
+    if not conversation:
+        raise HTTPException(status_code=404, detail="Conversation not found")
+    
+    return {
+        "status": "synced",
+        "conversation_id": conversation_id,
+        "cloud_conversation_id": conversation.cloud_conversation_id,
+        "message_count": len(conversation.messages),
+    }
 
 
 @router.delete("/{conversation_id}")

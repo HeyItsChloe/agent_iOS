@@ -133,11 +133,168 @@ class ConversationService:
         self._persist_conversation(conversation)
         return ConversationResponse(**conversation.model_dump())
     
-    def get_conversation(self, conversation_id: str) -> Optional[ConversationResponse]:
-        """Get a conversation by ID."""
+    def get_conversation(self, conversation_id: str, sync_from_cloud: bool = False) -> Optional[ConversationResponse]:
+        """Get a conversation by ID.
+        
+        Args:
+            conversation_id: Local conversation ID
+            sync_from_cloud: If True, fetch latest messages from cloud before returning
+        """
         conversation = self._conversations.get(conversation_id)
         if conversation:
+            # Sync from cloud if requested and we have a cloud conversation ID
+            if sync_from_cloud and conversation.cloud_conversation_id:
+                self._sync_messages_from_cloud(conversation)
             return ConversationResponse(**conversation.model_dump())
+        return None
+    
+    def _sync_messages_from_cloud(self, conversation: Conversation) -> None:
+        """Sync messages from OpenHands Cloud to local conversation.
+        
+        Fetches events from the cloud and converts them to local messages.
+        Only adds messages that don't already exist locally.
+        """
+        if not conversation.cloud_conversation_id:
+            return
+        
+        if not SDK_AVAILABLE or not settings.openhands_api_key:
+            print(f"[Sync] Cannot sync - SDK not available or no API key")
+            return
+        
+        try:
+            print(f"[Sync] Syncing messages from cloud conversation: {conversation.cloud_conversation_id}")
+            
+            api_key = settings.openhands_api_key.get_secret_value()
+            client = OpenHandsCloudClient(api_key)
+            
+            # Fetch events from cloud
+            events = client.get_events(conversation.cloud_conversation_id, limit=200)
+            print(f"[Sync] Fetched {len(events)} events from cloud")
+            
+            # Get existing message IDs to avoid duplicates
+            existing_ids = {msg.id for msg in conversation.messages}
+            # Also track by content+timestamp to catch messages created from different sources
+            existing_content = {(msg.content[:100], msg.sender) for msg in conversation.messages}
+            
+            new_messages = []
+            for event in events:
+                msg = self._cloud_event_to_message(event, conversation.id)
+                if msg and msg.id not in existing_ids:
+                    # Check if this content already exists (from a different source)
+                    content_key = (msg.content[:100], msg.sender)
+                    if content_key not in existing_content:
+                        new_messages.append(msg)
+                        existing_content.add(content_key)
+            
+            if new_messages:
+                print(f"[Sync] Adding {len(new_messages)} new messages from cloud")
+                # Sort by timestamp and add
+                new_messages.sort(key=lambda m: m.timestamp)
+                conversation.messages.extend(new_messages)
+                # Re-sort all messages by timestamp
+                conversation.messages.sort(key=lambda m: m.timestamp)
+                conversation.updated_at = datetime.utcnow()
+                self._persist_conversation(conversation)
+            else:
+                print(f"[Sync] No new messages to add")
+                
+        except Exception as e:
+            print(f"[Sync] Error syncing from cloud: {e}")
+            import traceback
+            traceback.print_exc()
+    
+    def _cloud_event_to_message(self, event: dict, conversation_id: str) -> Optional[Message]:
+        """Convert a cloud event to a local Message.
+        
+        Args:
+            event: Cloud event dict
+            conversation_id: Local conversation ID
+        
+        Returns:
+            Message if event is a user or agent message, None otherwise
+        """
+        event_type = event.get("type", "")
+        
+        # Handle user messages
+        if event_type == "UserMessageEvent":
+            content = event.get("content", "")
+            if isinstance(content, list):
+                # Extract text from content array
+                content = " ".join(
+                    item.get("text", "") for item in content 
+                    if isinstance(item, dict) and item.get("type") == "text"
+                )
+            
+            if not content:
+                return None
+            
+            timestamp = event.get("timestamp")
+            if timestamp:
+                try:
+                    timestamp = datetime.fromisoformat(timestamp.replace("Z", "+00:00"))
+                except:
+                    timestamp = datetime.utcnow()
+            else:
+                timestamp = datetime.utcnow()
+            
+            return Message(
+                id=event.get("id", str(uuid4())),
+                conversation_id=conversation_id,
+                content=content,
+                sender=MessageSender.USER,
+                timestamp=timestamp,
+                status=MessageStatus.SENT,
+            )
+        
+        # Handle agent messages
+        elif event_type == "MessageEvent":
+            # Extract content from various possible locations
+            content = ""
+            
+            # Try direct content field
+            if event.get("content"):
+                content = event.get("content")
+            
+            # Try llm_message.content
+            llm_msg = event.get("llm_message", {})
+            if not content and llm_msg:
+                llm_content = llm_msg.get("content")
+                if isinstance(llm_content, str):
+                    content = llm_content
+                elif isinstance(llm_content, list):
+                    for item in llm_content:
+                        if isinstance(item, dict) and item.get("type") == "text":
+                            content = item.get("text", "")
+                            break
+                        elif isinstance(item, str):
+                            content = item
+                            break
+            
+            if not content:
+                return None
+            
+            timestamp = event.get("timestamp")
+            if timestamp:
+                try:
+                    timestamp = datetime.fromisoformat(timestamp.replace("Z", "+00:00"))
+                except:
+                    timestamp = datetime.utcnow()
+            else:
+                timestamp = datetime.utcnow()
+            
+            return Message(
+                id=event.get("id", str(uuid4())),
+                conversation_id=conversation_id,
+                content=content,
+                sender=MessageSender.AGENT,
+                agent_id="cloud-agent",
+                agent_name="Agent",
+                agent_color="#007AFF",
+                timestamp=timestamp,
+                status=MessageStatus.SENT,
+            )
+        
+        # Skip other event types (tool calls, observations, etc.)
         return None
     
     def delete_conversation(self, conversation_id: str) -> bool:
