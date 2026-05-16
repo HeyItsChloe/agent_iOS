@@ -48,18 +48,17 @@ If the user asks you to perform a git operation, politely explain that git actio
 and suggest they use the toolbar buttons or execute the commands themselves.
 """
 
-GITLIVE_SETUP_MESSAGE = """Set up GitLive for real-time sync. Run these commands:
+VSCODE_TUNNEL_SETUP_MESSAGE = """Set up VS Code Remote Tunnel so I can connect my local VS Code to this workspace. Run these commands:
 
 ```bash
-curl -fsSL https://code-server.dev/install.sh | sh && \
-code-server --install-extension GitLive.gitlive && \
-code-server --bind-addr 0.0.0.0:12000 --auth none --disable-telemetry /workspace > /tmp/code-server.log 2>&1 &
-sleep 3 && curl -s http://localhost:12000 > /dev/null && echo "GitLive ready on port 12000"
+curl -Lk 'https://code.visualstudio.com/sha/download?build=stable&os=cli-linux-x64' -o /tmp/vscode_cli.tar.gz && \
+tar -xzf /tmp/vscode_cli.tar.gz -C /usr/local/bin && \
+code tunnel --accept-server-license-terms --name openhands-workspace
 ```
 
-After setup, tell me the URL to open."""
+After the tunnel is running, give me the URL or tunnel name to connect."""
 
-GITLIVE_SKILL_ID = "gitlive-sync"
+VSCODE_TUNNEL_SKILL_ID = "gitlive-sync"
 
 
 class ConversationService:
@@ -149,10 +148,10 @@ class ConversationService:
         return False
     
     async def send_gitlive_setup(self, conversation_id: str) -> None:
-        """Send GitLive setup message to start the conversation."""
-        print(f"[GitLive] Sending setup message to conversation {conversation_id}")
-        await self.send_message(conversation_id, GITLIVE_SETUP_MESSAGE)
-        print(f"[GitLive] Setup message sent")
+        """Send VS Code Tunnel setup message to start the conversation."""
+        print(f"[VSCode Tunnel] Sending setup message to conversation {conversation_id}")
+        await self.send_message(conversation_id, VSCODE_TUNNEL_SETUP_MESSAGE)
+        print(f"[VSCode Tunnel] Setup message sent")
     
     async def send_message(
         self,
