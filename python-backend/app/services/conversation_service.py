@@ -475,6 +475,12 @@ class ConversationService:
             print(f"[ConvService]   response_text length: {len(response_text) if response_text else 0}")
             print(f"[ConvService]   response_text: {response_text[:500] if response_text else 'EMPTY'}...")
             
+            # Store the cloud conversation ID so terminal can resume this conversation
+            if cloud_conv_id:
+                conversation.cloud_conversation_id = cloud_conv_id
+                self._persist_conversation(conversation)
+                print(f"[ConvService] Stored cloud_conversation_id: {cloud_conv_id}")
+            
             # Stop typing indicator
             print(f"[ConvService] Stopping typing indicator...")
             await self._broadcast_event(
@@ -758,6 +764,7 @@ class ConversationService:
                         created_at=datetime.fromisoformat(data["created_at"]),
                         updated_at=datetime.fromisoformat(data["updated_at"]),
                         is_archived=data.get("is_archived", False),
+                        cloud_conversation_id=data.get("cloud_conversation_id"),
                     )
                     
                     self._conversations[conv.id] = conv
@@ -788,6 +795,7 @@ class ConversationService:
                 "created_at": conversation.created_at.isoformat(),
                 "updated_at": conversation.updated_at.isoformat(),
                 "is_archived": conversation.is_archived,
+                "cloud_conversation_id": conversation.cloud_conversation_id,
             }
             
             with open(file_path, "w") as f:

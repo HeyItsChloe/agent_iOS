@@ -425,17 +425,67 @@ function getWorkspaceDir() {
 }
 
 /**
+ * Fetch terminal info from backend to get cloud conversation ID.
+ */
+async function getTerminalInfo(conversationId) {
+  return new Promise((resolve, reject) => {
+    const req = http.request({
+      hostname: '127.0.0.1',
+      port: PYTHON_BACKEND_PORT,
+      path: `/api/conversations/${conversationId}/terminal-info`,
+      method: 'GET',
+      timeout: 5000,
+    }, (res) => {
+      let data = '';
+      res.on('data', chunk => data += chunk);
+      res.on('end', () => {
+        try {
+          resolve(JSON.parse(data));
+        } catch (e) {
+          reject(e);
+        }
+      });
+    });
+    req.on('error', reject);
+    req.on('timeout', () => {
+      req.destroy();
+      reject(new Error('Request timeout'));
+    });
+    req.end();
+  });
+}
+
+/**
  * Tool: Open Terminal in project directory with OpenHands CLI.
  * Opens the native terminal application at the workspace path and runs openhands.
- * If conversationId is provided, resumes that conversation instead of starting a new one.
+ * If conversationId is provided, fetches the cloud conversation ID and resumes that conversation.
  */
 ipcMain.handle('tool:open-terminal', async (event, conversationId) => {
   const workspaceDir = getWorkspaceDir();
   
-  // Build the openhands command - resume existing conversation if ID provided
-  const openhandsCmd = conversationId 
-    ? `openhands --resume ${conversationId}`
-    : 'openhands';
+  // Default to starting a new conversation
+  let openhandsCmd = 'openhands';
+  let cloudConvId = null;
+  
+  // If we have a conversation ID, try to get the cloud conversation ID
+  if (conversationId) {
+    try {
+      const terminalInfo = await getTerminalInfo(conversationId);
+      console.log(`[Tool] Terminal info:`, terminalInfo);
+      
+      if (terminalInfo.cloud_conversation_id) {
+        // Use the cloud conversation ID to resume the same conversation
+        cloudConvId = terminalInfo.cloud_conversation_id;
+        openhandsCmd = `openhands --resume ${cloudConvId}`;
+        console.log(`[Tool] Resuming cloud conversation: ${cloudConvId}`);
+      } else {
+        console.log(`[Tool] No cloud session yet, starting new conversation`);
+      }
+    } catch (error) {
+      console.log(`[Tool] Could not get terminal info: ${error.message}`);
+      console.log(`[Tool] Starting new conversation`);
+    }
+  }
   
   console.log(`[Tool] Opening terminal with command: ${openhandsCmd}`);
   console.log(`[Tool] Working directory: ${workspaceDir}`);
@@ -469,7 +519,12 @@ ipcMain.handle('tool:open-terminal', async (event, conversationId) => {
         }
       }
     }
-    return { success: true, conversationId };
+    return { 
+      success: true, 
+      conversationId,
+      cloudConversationId: cloudConvId,
+      resumed: !!cloudConvId,
+    };
   } catch (error) {
     console.error('[Tool] Failed to open terminal:', error);
     return { success: false, error: error.message };

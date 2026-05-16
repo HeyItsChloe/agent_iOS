@@ -74,6 +74,25 @@ async def delete_conversation(conversation_id: str):
     return {"status": "deleted"}
 
 
+@router.get("/{conversation_id}/terminal-info")
+async def get_terminal_info(conversation_id: str):
+    """Get terminal connection info for a conversation.
+    
+    Returns the cloud_conversation_id which can be used with
+    `openhands --resume <cloud_conversation_id>` to continue
+    the same conversation in a terminal.
+    """
+    conversation = conversation_service.get_conversation(conversation_id)
+    if not conversation:
+        raise HTTPException(status_code=404, detail="Conversation not found")
+    
+    return {
+        "conversation_id": conversation_id,
+        "cloud_conversation_id": conversation.cloud_conversation_id,
+        "has_cloud_session": conversation.cloud_conversation_id is not None,
+    }
+
+
 @router.post("/{conversation_id}/messages")
 async def send_message(conversation_id: str, request: SendMessageRequest):
     """Send a message to a conversation (non-streaming)."""

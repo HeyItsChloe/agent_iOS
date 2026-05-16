@@ -34,6 +34,10 @@ class Conversation(BaseModel):
     # Metadata
     is_archived: bool = False
     
+    # Cloud conversation ID (when using OpenHands Cloud)
+    # This is the ID returned by the cloud API, used to resume conversations
+    cloud_conversation_id: Optional[str] = None
+    
     class Config:
         use_enum_values = True
 
@@ -61,6 +65,7 @@ class ConversationResponse(BaseModel):
     updated_at: datetime
     typing_agents: dict[str, bool]
     is_archived: bool
+    cloud_conversation_id: Optional[str] = None
     
     class Config:
         from_attributes = True
