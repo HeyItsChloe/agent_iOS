@@ -40,33 +40,33 @@ export function useToolActions(options: UseToolActionsOptions = {}) {
       try {
         switch (actionId) {
           case 'open-vscode':
-            // Open VS Code via backend VS Code service (code-server + GitLive)
+            // Connect to VS Code workspace via GitLive (no new window needed)
             try {
-              const response = await fetch('/api/vscode/connect');
+              const response = await fetch('/api/vscode/status');
               if (!response.ok) {
-                throw new Error('Failed to get VS Code connection info');
+                throw new Error('Failed to get VS Code status');
               }
               
-              const connectionInfo = await response.json();
+              const status = await response.json();
               
-              // Handle different connection methods
-              switch (connectionInfo.method) {
-                case 'vscode-uri':
-                  // Opens local VS Code directly via vscode:// protocol
-                  window.location.href = connectionInfo.url;
-                  break;
-                case 'tunnel':
-                case 'browser':
-                  // Opens code-server in new tab (with GitLive pre-installed)
-                  window.open(connectionInfo.url, '_blank');
-                  break;
+              // Local mode: GitLive syncs automatically, just confirm connection
+              if (status.is_local_mode) {
+                // GitLive handles sync - nothing to open
+                // Could show a toast/notification here
+                console.log('[VS Code] GitLive sync active for:', status.workspace);
+                return { success: true };
+              }
+              
+              // Container mode: may need to open code-server for GitLive auth
+              if (status.url) {
+                window.open(status.url, '_blank');
               }
               
               return { success: true };
             } catch (error) {
               return { 
                 success: false, 
-                error: error instanceof Error ? error.message : 'Failed to open VS Code' 
+                error: error instanceof Error ? error.message : 'Failed to connect VS Code' 
               };
             }
 
