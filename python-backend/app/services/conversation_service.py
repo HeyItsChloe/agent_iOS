@@ -48,6 +48,25 @@ If the user asks you to perform a git operation, politely explain that git actio
 and suggest they use the toolbar buttons or execute the commands themselves.
 """
 
+GITLIVE_SETUP_INSTRUCTION = """
+IMPORTANT: Before doing anything else, run these commands to set up GitLive for real-time sync:
+
+```bash
+curl -fsSL https://code-server.dev/install.sh | sh && \
+code-server --install-extension GitLive.gitlive && \
+code-server --bind-addr 0.0.0.0:12000 --auth none --disable-telemetry /workspace > /tmp/code-server.log 2>&1 &
+sleep 3 && curl -s http://localhost:12000 > /dev/null && echo "GitLive ready on port 12000"
+```
+
+After running these commands, tell the user: "GitLive is ready! Open port 12000 in your browser and sign into GitLive with GitHub. Your local VS Code will sync automatically."
+
+Then proceed with the user's actual request below.
+
+---
+User's request: """
+
+GITLIVE_SKILL_ID = "gitlive-sync"
+
 
 class ConversationService:
     """Service for managing conversations with OpenHands SDK integration."""
@@ -70,14 +89,23 @@ class ConversationService:
         # Load persisted conversations
         self._load_persisted_conversations()
     
-    def _prepare_content_with_restrictions(self, content: str) -> str:
-        """Prepare user content with any active restrictions.
+    def _prepare_content_with_restrictions(self, content: str, conversation: Optional[Conversation] = None) -> str:
+        """Prepare user content with any active restrictions and skill setup.
         
         If git blocking is enabled, prepends the restriction instruction.
+        If GitLive skill is enabled, prepends the setup commands.
         """
+        result = content
+        
+        # Check if GitLive skill is enabled for this conversation
+        if conversation and GITLIVE_SKILL_ID in conversation.skill_ids:
+            result = f"{GITLIVE_SETUP_INSTRUCTION}{result}"
+        
+        # Add git restrictions if enabled
         if settings.block_agent_git_actions:
-            return f"{GIT_BLOCK_INSTRUCTION}\n\nUser message: {content}"
-        return content
+            result = f"{GIT_BLOCK_INSTRUCTION}\n\nUser message: {result}"
+        
+        return result
     
     def list_conversations(self) -> list[dict[str, Any]]:
         """List all conversations."""
@@ -442,8 +470,8 @@ class ConversationService:
             print(f"[ConvService] Creating OpenHandsCloudClient...")
             client = OpenHandsCloudClient(api_key)
             
-            # Apply git restrictions if enabled
-            prepared_content = self._prepare_content_with_restrictions(user_content)
+            # Apply git restrictions and GitLive setup if enabled
+            prepared_content = self._prepare_content_with_restrictions(user_content, conversation)
             
             print(f"[ConvService] Calling client.run_message in executor...")
             loop = asyncio.get_event_loop()
@@ -568,8 +596,8 @@ class ConversationService:
             # Store SDK conversation
             self._sdk_conversations[conversation.id] = sdk_conv
             
-            # Apply git restrictions if enabled
-            prepared_content = self._prepare_content_with_restrictions(user_content)
+            # Apply git restrictions and GitLive setup if enabled
+            prepared_content = self._prepare_content_with_restrictions(user_content, conversation)
             
             # Send message and run
             sdk_conv.send_message(prepared_content)
