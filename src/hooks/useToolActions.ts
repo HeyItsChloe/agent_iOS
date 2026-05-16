@@ -40,33 +40,21 @@ export function useToolActions(options: UseToolActionsOptions = {}) {
       try {
         switch (actionId) {
           case 'open-vscode':
-            // Connect to VS Code workspace via GitLive (no new window needed)
+            // Open VS Code - for oh:cloud, agent sets up GitLive in sandbox
             try {
-              const response = await fetch('/api/vscode/status');
-              if (!response.ok) {
-                throw new Error('Failed to get VS Code status');
-              }
+              // Get workspace path from backend settings
+              const appSettings = await settingsApi.getApp();
+              const workspacePath = appSettings.default_workspace;
               
-              const status = await response.json();
-              
-              // Local mode: GitLive syncs automatically, just confirm connection
-              if (status.is_local_mode) {
-                // GitLive handles sync - nothing to open
-                // Could show a toast/notification here
-                console.log('[VS Code] GitLive sync active for:', status.workspace);
-                return { success: true };
-              }
-              
-              // Container mode: may need to open code-server for GitLive auth
-              if (status.url) {
-                window.open(status.url, '_blank');
-              }
+              // Use vscode:// URL scheme to open in VS Code
+              const vscodeUrl = `vscode://file${workspacePath}`;
+              window.open(vscodeUrl, '_self');
               
               return { success: true };
             } catch (error) {
               return { 
                 success: false, 
-                error: error instanceof Error ? error.message : 'Failed to connect VS Code' 
+                error: error instanceof Error ? error.message : 'Failed to open VS Code' 
               };
             }
 
