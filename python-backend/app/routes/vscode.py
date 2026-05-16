@@ -20,7 +20,8 @@ class VSCodeStatusResponse(BaseModel):
     workspace: str
     gitlive_installed: bool
     tunnel_url: Optional[str]
-    vscode_uri: Optional[str]
+    vscode_uri: str
+    is_local_mode: bool = False
 
 
 class VSCodeConnectionInfo(BaseModel):
@@ -45,7 +46,8 @@ async def get_vscode_status():
         workspace=status.workspace,
         gitlive_installed=status.gitlive_installed,
         tunnel_url=status.tunnel_url,
-        vscode_uri=vscode_service.get_vscode_uri()
+        vscode_uri=vscode_service.get_vscode_uri(),
+        is_local_mode=status.is_local_mode
     )
 
 
@@ -54,18 +56,14 @@ async def start_vscode_server():
     """Start the VS Code server.
     
     Starts code-server if not already running.
+    In local mode, this is a no-op (uses native VS Code).
     Returns connection information.
     """
     status = await vscode_service.start_server()
     
-    if not status.running:
-        raise HTTPException(
-            status_code=500,
-            detail="Failed to start VS Code server"
-        )
-    
     return {
         "success": True,
+        "is_local_mode": status.is_local_mode,
         "status": VSCodeStatusResponse(
             running=status.running,
             port=status.port,
@@ -73,7 +71,8 @@ async def start_vscode_server():
             workspace=status.workspace,
             gitlive_installed=status.gitlive_installed,
             tunnel_url=status.tunnel_url,
-            vscode_uri=vscode_service.get_vscode_uri()
+            vscode_uri=vscode_service.get_vscode_uri(),
+            is_local_mode=status.is_local_mode
         )
     }
 
@@ -90,34 +89,33 @@ async def get_connection_info():
     """Get connection information for 'Open in VS Code' button.
     
     Returns the best available method for connecting to the workspace:
-    1. vscode:// URI (opens local VS Code directly)
-    2. Tunnel URL (for Remote - Tunnels)
-    3. Browser URL (code-server in browser)
+    - Local mode: vscode:// URI (opens local VS Code directly)
+    - Container mode: code-server URL or tunnel URL
     """
     status = await vscode_service.get_status()
     
-    # Ensure server is running
-    if not status.running:
-        status = await vscode_service.start_server()
-    
-    # Priority 1: VS Code URI (best UX - opens local VS Code)
-    vscode_uri = vscode_service.get_vscode_uri()
-    if vscode_uri:
+    # Local mode: always use vscode:// URI
+    if status.is_local_mode:
+        vscode_uri = vscode_service.get_vscode_uri()
         return VSCodeConnectionInfo(
             method="vscode-uri",
             url=vscode_uri,
-            instructions="Click to open in your local VS Code"
+            instructions="Opens workspace in VS Code"
         )
     
-    # Priority 2: Tunnel URL
+    # Container mode: try to start server if not running
+    if not status.running:
+        status = await vscode_service.start_server()
+    
+    # Priority 1: Tunnel URL (if configured)
     if status.tunnel_url:
         return VSCodeConnectionInfo(
             method="tunnel",
             url=status.tunnel_url,
-            instructions="Opens VS Code in browser, connected to workspace"
+            instructions="Opens VS Code connected to workspace via tunnel"
         )
     
-    # Priority 3: Browser URL (code-server)
+    # Priority 2: Browser URL (code-server)
     if status.url:
         return VSCodeConnectionInfo(
             method="browser",
@@ -125,9 +123,12 @@ async def get_connection_info():
             instructions="Opens VS Code in your browser with GitLive pre-installed"
         )
     
-    raise HTTPException(
-        status_code=503,
-        detail="VS Code server not available"
+    # Fallback: vscode:// URI
+    vscode_uri = vscode_service.get_vscode_uri()
+    return VSCodeConnectionInfo(
+        method="vscode-uri",
+        url=vscode_uri,
+        instructions="Opens workspace in VS Code"
     )
 
 
